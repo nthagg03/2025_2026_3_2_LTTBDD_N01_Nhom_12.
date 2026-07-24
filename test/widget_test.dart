@@ -5,26 +5,52 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:locket/core/services/app_sync_service.dart';
+import 'package:locket/features/chat/chat_service.dart';
+import 'package:locket/features/notifications/notification_service.dart';
 import 'package:locket/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('app shows module list', (WidgetTester tester) async {
+    await tester.pumpWidget(const LocketApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('Module skeleton'), findsOneWidget);
+    expect(find.text('Reactions'), findsOneWidget);
+    expect(find.text('Chat'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  test('notification can be marked as read', () async {
+    final service = NotificationService();
+    final notifications = await service.getNotifications();
+    final unreadItem = notifications.firstWhere((item) => item.isUnread);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await service.markAsRead(unreadItem.id);
+    final updated = await service.getNotifications();
+    final item = updated.firstWhere((entry) => entry.id == unreadItem.id);
+
+    expect(item.isUnread, isFalse);
+  });
+
+  test('chat unread count can be reset after opening conversation', () async {
+    final service = ChatService();
+    final conversations = await service.getConversations();
+    final conversation = conversations.firstWhere(
+      (item) => item.unreadCount > 0,
+    );
+
+    await service.markConversationAsRead(conversation.id);
+    final updated = await service.getConversations();
+    final refreshed = updated.firstWhere((item) => item.id == conversation.id);
+
+    expect(refreshed.unreadCount, 0);
+  });
+
+  test('sync service emits heartbeat events', () async {
+    final service = AppSyncService();
+    final event = await service.events.first;
+
+    expect(event.type, 'heartbeat');
+    service.dispose();
   });
 }

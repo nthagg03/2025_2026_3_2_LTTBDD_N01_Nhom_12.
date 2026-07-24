@@ -1,7 +1,8 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=F:\flutter"
-export "FLUTTER_APPLICATION_PATH=F:\Workspace\locketplatium\locket"
+export "FLUTTER_ROOT=C:\Users\Asus\flutter"
+export "FLUTTER_APPLICATION_PATH=D:\Downloads_O_D\2025_2026_3_2_LTTBDD_N01_Nhom_12.-main\2025_2026_3_2_LTTBDD_N01_Nhom_12.-main"
+export "FLUTTER_FRAMEWORK_SWIFT_PACKAGE_PATH=D:\Downloads_O_D\2025_2026_3_2_LTTBDD_N01_Nhom_12.-main\2025_2026_3_2_LTTBDD_N01_Nhom_12.-main\ios\Flutter\ephemeral\Packages\.packages\FlutterFramework"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_TARGET=lib\main.dart"
 export "FLUTTER_BUILD_DIR=build"

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'notification_service.dart';
 
@@ -16,6 +17,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   void initState() {
     super.initState();
     _futureNotifications = _service.getNotifications();
+    unawaited(_service.initialize());
   }
 
   @override

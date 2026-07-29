@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:home_widget/home_widget.dart';
 
 class HomeWidgetPage extends StatefulWidget {
   const HomeWidgetPage({super.key});
@@ -9,6 +10,45 @@ class HomeWidgetPage extends StatefulWidget {
 
 class _HomeWidgetPageState extends State<HomeWidgetPage> {
   String _latestPhoto = 'Latest photo: Summer trip';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedWidgetData();
+  }
+
+  Future<void> _loadSavedWidgetData() async {
+    final savedValue = await HomeWidget.getWidgetData<String>(
+      'latest_photo',
+      defaultValue: 'Latest photo: Summer trip',
+    );
+    if (!mounted) return;
+    setState(() {
+      _latestPhoto = savedValue ?? 'Latest photo: Summer trip';
+    });
+  }
+
+  Future<void> _refreshWidgetData() async {
+    final nextValue = 'Latest photo: Updated from refresh';
+    setState(() {
+      _latestPhoto = nextValue;
+    });
+
+    await HomeWidget.saveWidgetData<String>('latest_photo', nextValue);
+    await HomeWidget.saveWidgetData<String>(
+      'latest_photo_title',
+      'Newest photo',
+    );
+    await HomeWidget.updateWidget(
+      name: 'HomeWidgetProvider',
+      iOSName: 'HomeWidget',
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Widget data refreshed')));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,14 +83,7 @@ class _HomeWidgetPageState extends State<HomeWidgetPage> {
               const Text('This is the widget preview for the newest photo.'),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _latestPhoto = 'Latest photo: Updated from refresh';
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Widget data refreshed')),
-                  );
-                },
+                onPressed: _refreshWidgetData,
                 child: const Text('Refresh widget data'),
               ),
             ],

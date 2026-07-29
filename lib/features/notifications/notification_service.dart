@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../core/services/app_sync_service.dart';
 
 class NotificationItem {
@@ -34,10 +37,86 @@ class NotificationService {
   final List<NotificationItem> _notifications = [];
   final StreamController<List<NotificationItem>> _controller =
       StreamController<List<NotificationItem>>.broadcast();
+  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
   AppSyncService? _syncService;
   StreamSubscription? _syncSubscription;
+  String? _fcmToken;
 
   Stream<List<NotificationItem>> get notificationsStream => _controller.stream;
+  String? get fcmToken => _fcmToken;
+
+  Future<void> initialize() async {
+    try {
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      if (settings.authorizationStatus != AuthorizationStatus.authorized) {
+        return;
+      }
+
+      const androidSettings = AndroidInitializationSettings(
+        '@mipmap/ic_launcher',
+      );
+      const darwinSettings = DarwinInitializationSettings();
+      const initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: darwinSettings,
+        macOS: darwinSettings,
+      );
+      await _localNotifications.initialize(initSettings);
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      FirebaseMessaging.onMessage.listen((message) {
+        if (message.notification != null) {
+          unawaited(showLocalNotification(message));
+        }
+      });
+
+      final token = await _messaging.getToken();
+      if (token != null) {
+        await saveToken(token);
+      }
+      _messaging.onTokenRefresh.listen(saveToken);
+    } catch (error) {
+      debugPrint('Notification initialization failed: $error');
+    }
+  }
+
+  Future<void> saveToken(String token) async {
+    _fcmToken = token;
+    debugPrint('FCM token saved: $token');
+  }
+
+  Future<void> showLocalNotification(RemoteMessage message) async {
+    const androidDetails = AndroidNotificationDetails(
+      'locket_channel',
+      'Locket',
+      channelDescription: 'Locket notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const darwinDetails = DarwinNotificationDetails();
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+      macOS: darwinDetails,
+    );
+
+    await _localNotifications.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      message.notification?.title ?? 'New notification',
+      message.notification?.body ?? 'You have a new update.',
+      notificationDetails,
+    );
+  }
 
   Future<List<NotificationItem>> getNotifications() async {
     await Future.delayed(const Duration(milliseconds: 300));

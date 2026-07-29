@@ -10,32 +10,22 @@ class ReactionsPage extends StatefulWidget {
 
 class _ReactionsPageState extends State<ReactionsPage> {
   final ReactionService _service = ReactionService();
-  late Future<ReactionSummary> _futureSummary;
+  late Stream<ReactionSummary> _summaryStream;
+  final String _imageId = 'image_01';
+  final String _currentUserName = 'Bạn';
 
   @override
   void initState() {
     super.initState();
-    _refreshSummary();
-  }
-
-  void _refreshSummary() {
-    _futureSummary = _service.getReactionSummary('image_01', 'Bạn');
+    _summaryStream = _service.watchImageSummary(_imageId, _currentUserName);
   }
 
   Future<void> _handleReaction(String emoji) async {
-    await _service.addOrUpdateReaction('image_01', emoji, 'Bạn');
-    if (!mounted) return;
-    setState(() {
-      _refreshSummary();
-    });
+    await _service.addOrUpdateReaction(_imageId, emoji, _currentUserName);
   }
 
   Future<void> _removeMyReaction() async {
-    await _service.removeReaction('image_01', 'Bạn');
-    if (!mounted) return;
-    setState(() {
-      _refreshSummary();
-    });
+    await _service.removeReaction(_imageId, _currentUserName);
   }
 
   @override
@@ -44,14 +34,17 @@ class _ReactionsPageState extends State<ReactionsPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reactions')),
-      body: FutureBuilder<ReactionSummary>(
-        future: _futureSummary,
+      body: StreamBuilder<ReactionSummary>(
+        stream: _summaryStream,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
           final summary = snapshot.data!;
+          final counts = summary.emojiCounts.entries.toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -89,6 +82,7 @@ class _ReactionsPageState extends State<ReactionsPage> {
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 8,
+                          runSpacing: 8,
                           children: emojis.map((emoji) {
                             final isSelected =
                                 summary.currentUserReaction == emoji;
@@ -100,18 +94,36 @@ class _ReactionsPageState extends State<ReactionsPage> {
                           }).toList(),
                         ),
                         const SizedBox(height: 12),
-                        Row(
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
                           children: [
-                            Text('Total: ${summary.totalCount}'),
-                            const SizedBox(width: 12),
+                            Chip(
+                              avatar: const Icon(Icons.favorite, size: 18),
+                              label: Text('Total: ${summary.totalCount}'),
+                            ),
                             if (summary.currentUserReaction != null)
-                              ElevatedButton.icon(
-                                onPressed: _removeMyReaction,
-                                icon: const Icon(Icons.delete_outline),
-                                label: const Text('Remove my reaction'),
+                              Chip(
+                                avatar: const Icon(
+                                  Icons.check_circle,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  'You: ${summary.currentUserReaction}',
+                                ),
                               ),
                           ],
                         ),
+                        const SizedBox(height: 12),
+                        if (summary.currentUserReaction != null)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: ElevatedButton.icon(
+                              onPressed: _removeMyReaction,
+                              icon: const Icon(Icons.delete_outline),
+                              label: const Text('Remove my reaction'),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -122,18 +134,48 @@ class _ReactionsPageState extends State<ReactionsPage> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-                if (summary.userNames.isEmpty)
+                if (summary.userEntries.isEmpty)
                   const Text('No reactions yet')
                 else
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: summary.userNames.map((name) {
-                      final emoji = summary.emojiCounts.keys.firstWhere(
-                        (entry) => summary.userNames.contains(name),
-                        orElse: () => '',
+                  Column(
+                    children: counts.map((entry) {
+                      final usersForEmoji = summary.userEntries
+                          .where((item) => item.emoji == entry.key)
+                          .toList();
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    entry.key,
+                                    style: const TextStyle(fontSize: 20),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text('${entry.value} reactions'),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: usersForEmoji.map((item) {
+                                  return Chip(
+                                    avatar: CircleAvatar(
+                                      child: Text(item.userName[0]),
+                                    ),
+                                    label: Text(item.userName),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
                       );
-                      return Chip(label: Text('$name: $emoji'));
                     }).toList(),
                   ),
               ],

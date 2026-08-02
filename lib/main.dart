@@ -1,10 +1,30 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'features/chat/chat_page.dart';
 import 'features/home_widget/home_widget_page.dart';
+import 'features/notifications/notification_service.dart';
 import 'features/notifications/notifications_page.dart';
 import 'features/reactions/reactions_page.dart';
 
-void main() {
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  debugPrint('Handling background message: ${message.messageId}');
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await Firebase.initializeApp();
+  } catch (error) {
+    debugPrint('Firebase initialization failed: $error');
+  }
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  final notificationService = NotificationService();
+  await notificationService.initialize();
+
   runApp(const LocketApp());
 }
 

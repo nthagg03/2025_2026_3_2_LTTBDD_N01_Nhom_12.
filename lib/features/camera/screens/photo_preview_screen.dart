@@ -1,22 +1,19 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'select_recipients_screen.dart';
 
 class PhotoPreviewScreen extends StatefulWidget {
   final Uint8List imageBytes;
 
-  const PhotoPreviewScreen({
-    super.key,
-    required this.imageBytes,
-  });
+  const PhotoPreviewScreen({super.key, required this.imageBytes});
 
   @override
   State<PhotoPreviewScreen> createState() => _PhotoPreviewScreenState();
 }
 
 class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
-  final TextEditingController _captionController =
-      TextEditingController();
+  final TextEditingController _captionController = TextEditingController();
 
   static const int _maxCaptionLength = 120;
 
@@ -30,18 +27,18 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     Navigator.pop(context);
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     final caption = _captionController.text.trim();
 
-    // Bước sau sẽ chuyển sang màn hình chọn người nhận.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          caption.isEmpty
-              ? 'Ảnh đã sẵn sàng để chọn người nhận.'
-              : 'Caption: $caption',
+    FocusScope.of(context).unfocus();
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SelectRecipientsScreen(
+          imageBytes: widget.imageBytes,
+          caption: caption,
         ),
-        backgroundColor: const Color(0xFF7F77DD),
       ),
     );
   }
@@ -116,11 +113,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Colors.transparent,
-            Color(0xD9000000),
-          ],
+          colors: [Colors.transparent, Colors.transparent, Color(0xD9000000)],
           stops: [0, 0.52, 1],
         ),
       ),
@@ -145,12 +138,8 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
         ),
         decoration: InputDecoration(
           hintText: 'Thêm chú thích...',
-          hintStyle: const TextStyle(
-            color: Colors.white60,
-          ),
-          counterStyle: const TextStyle(
-            color: Colors.white54,
-          ),
+          hintStyle: const TextStyle(color: Colors.white60),
+          counterStyle: const TextStyle(color: Colors.white54),
           filled: true,
           fillColor: Colors.black.withValues(alpha: 0.46),
           contentPadding: const EdgeInsets.symmetric(
@@ -159,16 +148,11 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
-            borderSide: const BorderSide(
-              color: Colors.white24,
-            ),
+            borderSide: const BorderSide(color: Colors.white24),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
-            borderSide: const BorderSide(
-              color: Color(0xFFFFB800),
-              width: 1.5,
-            ),
+            borderSide: const BorderSide(color: Color(0xFFFFB800), width: 1.5),
           ),
         ),
       ),
@@ -186,9 +170,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
                 minimumSize: const Size.fromHeight(54),
-                side: const BorderSide(
-                  color: Color(0xFF2A2A44),
-                ),
+                side: const BorderSide(color: Color(0xFF2A2A44)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(27),
                 ),
@@ -213,9 +195,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
               icon: const Icon(Icons.arrow_forward_rounded),
               label: const Text(
                 'Tiếp tục',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ),

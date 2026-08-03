@@ -25,10 +25,7 @@ class CameraTopBar extends StatelessWidget {
             onTap: onFriendsPressed,
             borderRadius: BorderRadius.circular(24),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -60,20 +57,15 @@ class CameraTopBar extends StatelessWidget {
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFFFFB800),
-                width: 2,
-              ),
+              border: Border.all(color: const Color(0xFFFFB800), width: 2),
             ),
             child: CircleAvatar(
               backgroundColor: const Color(0xFF1C1C2E),
-              backgroundImage:
-                  avatarUrl != null ? NetworkImage(avatarUrl!) : null,
+              backgroundImage: avatarUrl != null
+                  ? NetworkImage(avatarUrl!)
+                  : null,
               child: avatarUrl == null
-                  ? const Icon(
-                      Icons.person_rounded,
-                      color: Colors.white,
-                    )
+                  ? const Icon(Icons.person_rounded, color: Colors.white)
                   : null,
             ),
           ),

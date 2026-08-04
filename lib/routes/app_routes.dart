@@ -10,6 +10,7 @@ import '../main_shell.dart';
 
 class AppRoutes {
   static const String splash = '/';
+  static const String landing = '/landing';
   static const String login = '/login';
   static const String register = '/register';
   static const String signIn = '/sign-in';
@@ -21,6 +22,7 @@ class AppRoutes {
     switch (settings.name) {
       case splash:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
+      case landing:
       case login:
         return PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>

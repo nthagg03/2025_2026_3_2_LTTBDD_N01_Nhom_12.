@@ -27,6 +27,12 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
     );
     _animController.forward();
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        _goToLogin();
+      }
+    });
   }
 
   @override

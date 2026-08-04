@@ -1,13 +1,7 @@
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 import '../../../routes/app_routes.dart';
-import '../widgets/camera_top_bar.dart';
-import '../widgets/flash_button.dart';
-import '../widgets/flip_camera_button.dart';
-import '../widgets/shutter_button.dart';
-import 'photo_preview_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -20,18 +14,18 @@ class _CameraScreenState extends State<CameraScreen>
     with WidgetsBindingObserver {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
-
   bool _isLoading = true;
   bool _permissionDenied = false;
   bool _isTakingPhoto = false;
   int _currentCameraIndex = 0;
-  FlashMode _flashMode = FlashMode.off;
 
-  final List<Map<String, String>> _friends = const [
-    {'name': 'Tân', 'avatar': 'DTT'},
-    {'name': 'Nam', 'avatar': 'TN'},
-    {'name': 'Thắng', 'avatar': 'XT'},
-    {'name': 'An Thuyên', 'avatar': '29C1'},
+  // Danh sách bạn bè giả (sau này lấy từ API)
+  final List<Map<String, String>> _friends = [
+    {'name': 'An', 'avatar': 'AN'},
+    {'name': 'Bình', 'avatar': 'BT'},
+    {'name': 'Hà', 'avatar': 'HN'},
+    {'name': 'Tú', 'avatar': 'TU'},
+    {'name': 'Minh', 'avatar': 'MN'},
   ];
 
   @override
@@ -50,241 +44,270 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = _controller;
-
-    if (controller == null || !controller.value.isInitialized) {
-      return;
-    }
-
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
-      controller.dispose();
-      _controller = null;
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    if (state == AppLifecycleState.inactive) {
+      _controller?.dispose();
     } else if (state == AppLifecycleState.resumed) {
       _initCamera();
     }
   }
 
   Future<void> _initCamera() async {
-    if (mounted) {
-      setState(() {
-        _isLoading = true;
-        _permissionDenied = false;
-      });
-    }
-
+    setState(() => _isLoading = true);
     final status = await Permission.camera.request();
-
     if (!status.isGranted) {
-      if (!mounted) return;
-      setState(() {
-        _permissionDenied = true;
-        _isLoading = false;
-      });
+      setState(() { _permissionDenied = true; _isLoading = false; });
       return;
     }
-
-    try {
-      _cameras = await availableCameras();
-
-      if (_cameras.isEmpty) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      if (_currentCameraIndex >= _cameras.length) {
-        _currentCameraIndex = 0;
-      }
-
-      await _startCamera(_cameras[_currentCameraIndex]);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-    }
+    _cameras = await availableCameras();
+    if (_cameras.isEmpty) { setState(() => _isLoading = false); return; }
+    await _startCamera(_cameras[_currentCameraIndex]);
   }
 
   Future<void> _startCamera(CameraDescription camera) async {
-    final oldController = _controller;
-    _controller = null;
-    await oldController?.dispose();
-
     final controller = CameraController(
-      camera,
-      ResolutionPreset.high,
+      camera, ResolutionPreset.high,
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.jpeg,
     );
-
     try {
       await controller.initialize();
-      await controller.setFlashMode(_flashMode);
-
-      if (!mounted) {
-        await controller.dispose();
-        return;
-      }
-
-      setState(() {
-        _controller = controller;
-        _isLoading = false;
-      });
-    } catch (_) {
-      await controller.dispose();
-
       if (!mounted) return;
+      setState(() { _controller = controller; _isLoading = false; });
+    } catch (e) {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _flipCamera() async {
-    if (_cameras.length < 2 || _isLoading || _isTakingPhoto) {
-      return;
-    }
-
+    if (_cameras.length < 2) return;
+    _currentCameraIndex = _currentCameraIndex == 0 ? 1 : 0;
+    await _controller?.dispose();
     setState(() => _isLoading = true);
-    _currentCameraIndex = (_currentCameraIndex + 1) % _cameras.length;
     await _startCamera(_cameras[_currentCameraIndex]);
   }
 
-  Future<void> _toggleFlash() async {
+  Future<void> _takePhoto() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
-
-    FlashMode newMode;
-    switch (_flashMode) {
-      case FlashMode.off:
-        newMode = FlashMode.auto;
-        break;
-      case FlashMode.auto:
-        newMode = FlashMode.always;
-        break;
-      case FlashMode.always:
-        newMode = FlashMode.torch;
-        break;
-      case FlashMode.torch:
-        newMode = FlashMode.off;
-        break;
-    }
-
+    if (_isTakingPhoto) return;
+    setState(() => _isTakingPhoto = true);
     try {
-      await _controller!.setFlashMode(newMode);
-      setState(() => _flashMode = newMode);
-    } catch (_) {}
+      final XFile photo = await _controller!.takePicture();
+      setState(() => _isTakingPhoto = false);
+      _showPreview(photo.path);
+    } catch (e) {
+      setState(() => _isTakingPhoto = false);
+    }
   }
 
-  Future<void> _takePhoto() async {
-    final controller = _controller;
-
-    if (controller == null ||
-        !controller.value.isInitialized ||
-        controller.value.isTakingPicture ||
-        _isTakingPhoto) {
-      return;
-    }
-
-    setState(() {
-      _isTakingPhoto = true;
-    });
-
-    try {
-      final photo = await controller.takePicture();
-      final imageBytes = await photo.readAsBytes();
-
-      if (!mounted) return;
-
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PhotoPreviewScreen(imageBytes: imageBytes),
+  void _showPreview(String path) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.black,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.88,
+        child: Stack(
+          children: [
+            // Ảnh preview bo góc
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                child: Image.network(
+                  path, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Image.asset(path, fit: BoxFit.cover),
+                ),
+              ),
+            ),
+            // Gradient dưới
+            Positioned(
+              bottom: 0, left: 0, right: 0,
+              child: Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.85)],
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+              ),
+            ),
+            // 2 nút dưới cùng
+            Positioned(
+              bottom: 0, left: 0, right: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  child: Row(
+                    children: [
+                      // Chụp lại
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(26),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: const Center(
+                              child: Text('Chụp lại',
+                                  style: TextStyle(color: Colors.white,
+                                      fontSize: 15, fontWeight: FontWeight.w500)),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Gửi
+                      Expanded(
+                        flex: 2,
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('✅ Đã đăng! AI đang xử lý từ vựng...'),
+                                backgroundColor: Color(0xFF7F77DD),
+                                duration: Duration(seconds: 3),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFB800), // Vàng như Locket
+                              borderRadius: BorderRadius.circular(26),
+                            ),
+                            child: const Center(
+                              child: Text('Gửi cho bạn bè 🚀',
+                                  style: TextStyle(color: Colors.black,
+                                      fontSize: 15, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-      );
-    } on CameraException catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Không thể chụp ảnh: ${error.description ?? error.code}',
-          ),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Không thể xử lý ảnh: $error'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isTakingPhoto = false;
-        });
-      }
-    }
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     if (_permissionDenied) return _buildPermissionDenied();
     if (_isLoading) return _buildLoading();
+    if (_controller == null) return _buildError();
 
-    final controller = _controller;
-
-    if (controller == null || !controller.value.isInitialized) {
-      return _buildError();
-    }
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A14),
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Column(
           children: [
-            // Top Bar with Friends Pill & Profile Avatar
+
+            // ── TOP BAR ──
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: CameraTopBar(
-                friendCount: _friends.length,
-                onFriendsPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Danh sách bạn bè'),
-                      duration: Duration(seconds: 1),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  // Nút thông báo
+                  _iconBtn(Icons.notifications_off_outlined, () {}),
+                  const Spacer(),
+                  // Số bạn bè — giống Locket
+                  GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, AppRoutes.friends),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.people, color: Colors.white, size: 16),
+                          const SizedBox(width: 6),
+                          Text('${_friends.length} người bạn',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500)),
+                        ],
+                      ),
                     ),
-                  );
-                },
-                onProfilePressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Trang cá nhân'),
-                      duration: Duration(seconds: 1),
+                  ),
+                  const Spacer(),
+                  // Avatar bản thân
+                  GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+                    child: Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white24),
+                        color: const Color(0xFF7F77DD).withValues(alpha: 0.3),
+                      ),
+                      child: const Center(
+                        child: Text('Tôi',
+                            style: TextStyle(color: Colors.white, fontSize: 10,
+                                fontWeight: FontWeight.w600)),
+                      ),
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
 
-            // Large Camera Preview Box with Rounded Corners (Radius 28)
+            // ── VIEWFINDER bo góc như Locket ──
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(28),
                   child: Stack(
-                    fit: StackFit.expand,
                     children: [
-                      _buildCameraPreview(controller),
-
-                      // Flash Mode Control Widget
+                      // Camera preview
+                      SizedBox(
+                        width: double.infinity,
+                        height: double.infinity,
+                        child: FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(
+                            width: _controller!.value.previewSize!.height,
+                            height: _controller!.value.previewSize!.width,
+                            child: CameraPreview(_controller!),
+                          ),
+                        ),
+                      ),
+                      // Flash + zoom badge
                       Positioned(
-                        top: 14,
-                        left: 14,
-                        child: FlashButton(
-                          flashMode: _flashMode,
-                          onPressed: _toggleFlash,
+                        top: 14, left: 14,
+                        child: _cameraBtn(Icons.flash_off, () {}),
+                      ),
+                      Positioned(
+                        top: 14, right: 14,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.black45,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text('1×',
+                              style: TextStyle(color: Colors.white,
+                                  fontSize: 13, fontWeight: FontWeight.w600)),
                         ),
                       ),
                     ],
@@ -293,47 +316,102 @@ class _CameraScreenState extends State<CameraScreen>
               ),
             ),
 
-            // Camera Capture Controls (Feed shortcut, Shutter button, Flip camera)
+            // ── CONTROLS ──
             Padding(
-              padding: const EdgeInsets.fromLTRB(36, 16, 36, 8),
+              padding: const EdgeInsets.fromLTRB(40, 20, 40, 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // Thumb ảnh gần nhất / thư viện
                   GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(context, AppRoutes.feed);
-                    },
+                    onTap: () {},
                     child: Container(
-                      width: 52,
-                      height: 52,
+                      width: 52, height: 52,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF13132A),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF2A2A44)),
+                        color: const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white12),
                       ),
-                      child: const Icon(
-                        Icons.photo_library_rounded,
-                        color: Colors.white70,
-                        size: 24,
+                      child: const Icon(Icons.photo_library_outlined,
+                          color: Colors.white54, size: 24),
+                    ),
+                  ),
+
+                  // Nút chụp — vàng như Locket
+                  GestureDetector(
+                    onTap: _isTakingPhoto ? null : _takePhoto,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 80),
+                      width: _isTakingPhoto ? 72 : 78,
+                      height: _isTakingPhoto ? 72 : 78,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFFFFB800),
+                          width: 4,
+                        ),
+                      ),
+                      child: Center(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 80),
+                          width: _isTakingPhoto ? 58 : 64,
+                          height: _isTakingPhoto ? 58 : 64,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
                   ),
 
-                  ShutterButton(
-                    onPressed: _takePhoto,
-                    isLoading: _isTakingPhoto,
-                  ),
-
-                  FlipCameraButton(
-                    onPressed: _flipCamera,
-                    isLoading: _isLoading,
+                  // Lật camera
+                  GestureDetector(
+                    onTap: _flipCamera,
+                    child: Container(
+                      width: 52, height: 52,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C1E),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: const Icon(Icons.flip_camera_ios_outlined,
+                          color: Colors.white, size: 24),
+                    ),
                   ),
                 ],
               ),
             ),
 
-            // Bottom Memories / History Button
-            _buildHistoryButton(),
+            // ── LỊCH SỬ ảnh đã gửi ──
+            GestureDetector(
+              onTap: () {},
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFB800),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('4',
+                        style: TextStyle(color: Colors.black,
+                            fontSize: 13, fontWeight: FontWeight.w700)),
+                    SizedBox(width: 6),
+                    Text('Lịch sử',
+                        style: TextStyle(color: Colors.black,
+                            fontSize: 13, fontWeight: FontWeight.w500)),
+                    SizedBox(width: 4),
+                    Icon(Icons.keyboard_arrow_down,
+                        color: Colors.black, size: 16),
+                  ],
+                ),
+              ),
+            ),
+
             const SizedBox(height: 4),
           ],
         ),
@@ -341,140 +419,72 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
-  Widget _buildCameraPreview(CameraController controller) {
-    final previewSize = controller.value.previewSize;
-
-    if (previewSize == null) {
-      return const ColoredBox(color: Colors.black);
-    }
-
-    return FittedBox(
-      fit: BoxFit.cover,
-      child: SizedBox(
-        width: previewSize.height,
-        height: previewSize.width,
-        child: CameraPreview(controller),
-      ),
-    );
-  }
-
-  Widget _buildHistoryButton() {
+  Widget _iconBtn(IconData icon, VoidCallback onTap) {
     return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(context, AppRoutes.memories);
-      },
+      onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        width: 36, height: 36,
         decoration: BoxDecoration(
-          color: const Color(0xFFFFB800),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFFFB800).withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          color: const Color(0xFF1C1C1E),
+          shape: BoxShape.circle,
         ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '4',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            SizedBox(width: 6),
-            Text(
-              'Lịch sử kỷ niệm',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(width: 4),
-            Icon(Icons.keyboard_arrow_up_rounded, color: Colors.black, size: 18),
-          ],
-        ),
+        child: Icon(icon, color: Colors.white, size: 18),
       ),
     );
   }
 
-  Widget _buildLoading() {
-    return const Scaffold(
-      backgroundColor: Color(0xFF0A0A14),
-      body: Center(
-        child: CircularProgressIndicator(color: Color(0xFFFFB800)),
+  Widget _cameraBtn(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 34, height: 34,
+        decoration: BoxDecoration(
+          color: Colors.black38,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 18),
       ),
     );
   }
 
-  Widget _buildPermissionDenied() {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A0A14),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.camera_alt_outlined,
-              color: Colors.white24,
-              size: 56,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Cần quyền camera',
-              style: TextStyle(color: Colors.white70, fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: openAppSettings,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFB800),
-              ),
-              child: const Text(
-                'Mở Cài đặt',
-                style: TextStyle(color: Colors.black),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildLoading() => const Scaffold(
+    backgroundColor: Colors.black,
+    body: Center(child: CircularProgressIndicator(color: Color(0xFFFFB800))),
+  );
 
-  Widget _buildError() {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A0A14),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white24, size: 56),
-            const SizedBox(height: 16),
-            const Text(
-              'Không mở được camera',
-              style: TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _initCamera,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFB800),
-              ),
-              child: const Text(
-                'Thử lại',
-                style: TextStyle(color: Colors.black),
-              ),
-            ),
-          ],
+  Widget _buildPermissionDenied() => Scaffold(
+    backgroundColor: Colors.black,
+    body: Center(
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Icon(Icons.camera_alt_outlined, color: Colors.white24, size: 48),
+        const SizedBox(height: 16),
+        const Text('Cần quyền camera',
+            style: TextStyle(color: Colors.white70, fontSize: 16)),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: openAppSettings,
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFB800)),
+          child: const Text('Mở Cài đặt', style: TextStyle(color: Colors.black)),
         ),
-      ),
-    );
-  }
+      ]),
+    ),
+  );
+
+  Widget _buildError() => Scaffold(
+    backgroundColor: Colors.black,
+    body: Center(
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Icon(Icons.error_outline, color: Colors.white24, size: 48),
+        const SizedBox(height: 16),
+        const Text('Không mở được camera',
+            style: TextStyle(color: Colors.white70)),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: _initCamera,
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFB800)),
+          child: const Text('Thử lại', style: TextStyle(color: Colors.black)),
+        ),
+      ]),
+    ),
+  );
 }

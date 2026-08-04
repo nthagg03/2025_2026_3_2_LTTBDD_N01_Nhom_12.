@@ -5,8 +5,13 @@ import 'select_recipients_screen.dart';
 
 class PhotoPreviewScreen extends StatefulWidget {
   final Uint8List imageBytes;
+  final String? imagePath;
 
-  const PhotoPreviewScreen({super.key, required this.imageBytes});
+  const PhotoPreviewScreen({
+    super.key,
+    required this.imageBytes,
+    this.imagePath,
+  });
 
   @override
   State<PhotoPreviewScreen> createState() => _PhotoPreviewScreenState();
@@ -37,6 +42,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       MaterialPageRoute(
         builder: (context) => SelectRecipientsScreen(
           imageBytes: widget.imageBytes,
+          imagePath: widget.imagePath,
           caption: caption,
         ),
       ),

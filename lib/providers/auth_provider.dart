@@ -3,6 +3,10 @@ import '../models/app_user.dart';
 import '../repositories/fake_user_repository.dart';
 
 class AuthProvider extends ChangeNotifier {
+  static final AuthProvider instance = AuthProvider._internal();
+  factory AuthProvider() => instance;
+  AuthProvider._internal();
+
   final FakeUserRepository _repository = FakeUserRepository();
 
   AppUser? get currentUser => _repository.currentUser;

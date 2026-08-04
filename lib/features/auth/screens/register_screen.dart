@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../providers/auth_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../widgets/auth_button.dart';
 
@@ -11,34 +12,23 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  final _confirmPassCtrl = TextEditingController();
 
   bool _obscurePass = true;
-  bool _obscureConfirm = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
-    _confirmPassCtrl.dispose();
     super.dispose();
   }
 
   void _submitRegister() async {
-    final name = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text;
-    final confirm = _confirmPassCtrl.text;
 
-    if (name.isEmpty) {
-      _showSnackBar('Vui lòng nhập tên hiển thị');
-      return;
-    }
     if (email.isEmpty || !email.contains('@')) {
       _showSnackBar('Vui lòng nhập email hợp lệ');
       return;
@@ -47,22 +37,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _showSnackBar('Mật khẩu phải từ 6 ký tự trở lên');
       return;
     }
-    if (pass != confirm) {
-      _showSnackBar('Mật khẩu nhập lại không khớp');
-      return;
-    }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
+    final success = await AuthProvider().register(
+      username: email.split('@').first,
+      email: email,
+      password: pass,
+    );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.home,
-      (route) => false,
-    );
+    if (success) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.home,
+        (route) => false,
+      );
+    } else {
+      _showSnackBar('Đăng ký thất bại. Vui lòng thử lại.');
+    }
   }
 
   void _showSnackBar(String message) {
@@ -87,106 +81,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Tạo tài khoản',
+          'Đăng ký',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Tham gia Locket Gold',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildFieldLabel('Email'),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: _emailCtrl,
+                  hint: 'example@email.com',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
                 ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Tạo tài khoản để chia sẻ ảnh cùng bạn bè',
-                style: TextStyle(color: Color(0x99FFFFFF), fontSize: 14),
-              ),
 
-              const SizedBox(height: 32),
+                const SizedBox(height: 20),
 
-              _buildFieldLabel('Tên của bạn'),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _nameCtrl,
-                hint: 'Nguyễn Văn A',
-                icon: Icons.person_outline_rounded,
-              ),
-
-              const SizedBox(height: 20),
-
-              _buildFieldLabel('Email'),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _emailCtrl,
-                hint: 'example@email.com',
-                icon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
-              ),
-
-              const SizedBox(height: 20),
-
-              _buildFieldLabel('Mật khẩu'),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _passCtrl,
-                hint: '••••••••',
-                icon: Icons.lock_outline_rounded,
-                obscure: _obscurePass,
-                suffix: IconButton(
-                  icon: Icon(
-                    _obscurePass
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    color: Colors.grey[500],
+                _buildFieldLabel('Mật khẩu'),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: _passCtrl,
+                  hint: '••••••••',
+                  icon: Icons.lock_outline_rounded,
+                  obscure: _obscurePass,
+                  suffix: IconButton(
+                    icon: Icon(
+                      _obscurePass
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: Colors.grey[500],
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePass = !_obscurePass);
+                    },
                   ),
-                  onPressed: () {
-                    setState(() => _obscurePass = !_obscurePass);
-                  },
                 ),
-              ),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 28),
 
-              _buildFieldLabel('Nhập lại mật khẩu'),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _confirmPassCtrl,
-                hint: '••••••••',
-                icon: Icons.lock_outline_rounded,
-                obscure: _obscureConfirm,
-                suffix: IconButton(
-                  icon: Icon(
-                    _obscureConfirm
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    color: Colors.grey[500],
-                  ),
-                  onPressed: () {
-                    setState(() => _obscureConfirm = !_obscureConfirm);
-                  },
+                AuthButton(
+                  label: 'Đăng ký',
+                  isPrimary: true,
+                  isLoading: _isLoading,
+                  onPressed: _submitRegister,
                 ),
-              ),
-
-              const SizedBox(height: 36),
-
-              AuthButton(
-                label: 'Đăng ký',
-                isPrimary: true,
-                isLoading: _isLoading,
-                onPressed: _submitRegister,
-              ),
-
-              const SizedBox(height: 24),
-            ],
+              ],
+            ),
           ),
         ),
       ),

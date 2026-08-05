@@ -41,6 +41,7 @@ class FakeUserRepository {
           id: 'user_${DateTime.now().millisecondsSinceEpoch}',
           username: email.split('@').first,
           email: email.trim(),
+          password: password,
           createdAt: DateTime.now(),
         );
         _users.add(newUser);
@@ -62,6 +63,7 @@ class FakeUserRepository {
       id: 'user_${DateTime.now().millisecondsSinceEpoch}',
       username: username.trim(),
       email: email.trim(),
+      password: password,
       avatarUrl: avatarUrl,
       createdAt: DateTime.now(),
     );

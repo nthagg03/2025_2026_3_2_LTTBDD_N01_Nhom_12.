@@ -3,9 +3,9 @@ import '../models/profile_model.dart';
 class ProfileService {
   ProfileService() {
     _profile = ProfileModel(
-      name: 'Nguyễn Văn Demo',
-      username: 'demo.user',
-      avatar: 'D',
+      name: 'Đàm Thế Tân',
+      username: 'td206',
+      avatar: 'T',
       bio: 'Yêu thích chia sẻ khoảnh khắc đẹp với bạn bè 📸',
       friendCount: 4,
       postCount: 12,

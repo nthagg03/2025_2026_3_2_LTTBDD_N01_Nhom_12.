@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../routes/app_routes.dart';
+import 'send_photo_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -11,33 +12,41 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
   bool _isLoading = true;
   bool _permissionDenied = false;
   bool _isTakingPhoto = false;
   int _currentCameraIndex = 0;
+  bool _flashOn = false;
 
-  // Danh sách bạn bè giả (sau này lấy từ API)
-  final List<Map<String, String>> _friends = [
-    {'name': 'An', 'avatar': 'AN'},
-    {'name': 'Bình', 'avatar': 'BT'},
-    {'name': 'Hà', 'avatar': 'HN'},
-    {'name': 'Tú', 'avatar': 'TU'},
-    {'name': 'Minh', 'avatar': 'MN'},
-  ];
+  // Animation cho nút chụp
+  late AnimationController _shutterAnim;
+  late Animation<double> _shutterScale;
+
+  static const int _friendCount = 23;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _shutterAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      lowerBound: 0.0,
+      upperBound: 1.0,
+    );
+    _shutterScale = Tween<double>(begin: 1.0, end: 0.88).animate(
+      CurvedAnimation(parent: _shutterAnim, curve: Curves.easeInOut),
+    );
     _initCamera();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _shutterAnim.dispose();
     _controller?.dispose();
     super.dispose();
   }
@@ -56,24 +65,34 @@ class _CameraScreenState extends State<CameraScreen>
     setState(() => _isLoading = true);
     final status = await Permission.camera.request();
     if (!status.isGranted) {
-      setState(() { _permissionDenied = true; _isLoading = false; });
+      setState(() {
+        _permissionDenied = true;
+        _isLoading = false;
+      });
       return;
     }
     _cameras = await availableCameras();
-    if (_cameras.isEmpty) { setState(() => _isLoading = false); return; }
+    if (_cameras.isEmpty) {
+      setState(() => _isLoading = false);
+      return;
+    }
     await _startCamera(_cameras[_currentCameraIndex]);
   }
 
   Future<void> _startCamera(CameraDescription camera) async {
     final controller = CameraController(
-      camera, ResolutionPreset.high,
+      camera,
+      ResolutionPreset.high,
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.jpeg,
     );
     try {
       await controller.initialize();
       if (!mounted) return;
-      setState(() { _controller = controller; _isLoading = false; });
+      setState(() {
+        _controller = controller;
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() => _isLoading = false);
     }
@@ -87,404 +106,424 @@ class _CameraScreenState extends State<CameraScreen>
     await _startCamera(_cameras[_currentCameraIndex]);
   }
 
+  void _toggleFlash() {
+    if (_controller == null) return;
+    setState(() => _flashOn = !_flashOn);
+    _controller!.setFlashMode(_flashOn ? FlashMode.torch : FlashMode.off);
+  }
+
   Future<void> _takePhoto() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
     if (_isTakingPhoto) return;
+    // Animate shutter
+    await _shutterAnim.forward();
+    await _shutterAnim.reverse();
     setState(() => _isTakingPhoto = true);
     try {
       final XFile photo = await _controller!.takePicture();
+      final bytes = await photo.readAsBytes();
+      if (!mounted) return;
       setState(() => _isTakingPhoto = false);
-      _showPreview(photo.path);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SendPhotoScreen(
+            imageBytes: bytes,
+            imagePath: photo.path,
+          ),
+        ),
+      );
     } catch (e) {
       setState(() => _isTakingPhoto = false);
     }
   }
 
-  void _showPreview(String path) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.black,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => SizedBox(
-        height: MediaQuery.of(context).size.height * 0.88,
-        child: Stack(
-          children: [
-            // Ảnh preview bo góc
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                child: Image.network(
-                  path, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Image.asset(path, fit: BoxFit.cover),
-                ),
-              ),
-            ),
-            // Gradient dưới
-            Positioned(
-              bottom: 0, left: 0, right: 0,
-              child: Container(
-                height: 180,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withOpacity(0.85)],
-                  ),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-              ),
-            ),
-            // 2 nút dưới cùng
-            Positioned(
-              bottom: 0, left: 0, right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                  child: Row(
-                    children: [
-                      // Chụp lại
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Container(
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(26),
-                              border: Border.all(color: Colors.white24),
-                            ),
-                            child: const Center(
-                              child: Text('Chụp lại',
-                                  style: TextStyle(color: Colors.white,
-                                      fontSize: 15, fontWeight: FontWeight.w500)),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Gửi
-                      Expanded(
-                        flex: 2,
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('✅ Đã đăng! AI đang xử lý từ vựng...'),
-                                backgroundColor: Color(0xFF7F77DD),
-                                duration: Duration(seconds: 3),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFB800), // Vàng như Locket
-                              borderRadius: BorderRadius.circular(26),
-                            ),
-                            child: const Center(
-                              child: Text('Gửi cho bạn bè 🚀',
-                                  style: TextStyle(color: Colors.black,
-                                      fontSize: 15, fontWeight: FontWeight.w700)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
+  // ─────────────────────────────────────────────────
+  // BUILD
+  // ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     if (_permissionDenied) return _buildPermissionDenied();
     if (_isLoading) return _buildLoading();
     if (_controller == null) return _buildError();
 
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Column(
           children: [
+            // ── TOP BAR ──────────────────────────────────
+            _buildTopBar(),
 
-            // ── TOP BAR ──
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
-                children: [
-                  // Nút thông báo
-                  _iconBtn(Icons.notifications_off_outlined, () {}),
-                  const Spacer(),
-                  // Số bạn bè — giống Locket
-                  GestureDetector(
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.friends),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.people, color: Colors.white, size: 16),
-                          const SizedBox(width: 6),
-                          Text('${_friends.length} người bạn',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  // Avatar bản thân
-                  GestureDetector(
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
-                    child: Container(
-                      width: 36, height: 36,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white24),
-                        color: const Color(0xFF7F77DD).withValues(alpha: 0.3),
-                      ),
-                      child: const Center(
-                        child: Text('Tôi',
-                            style: TextStyle(color: Colors.white, fontSize: 10,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // ── VIEWFINDER ───────────────────────────────
+            _buildViewfinder(),
 
-            // ── VIEWFINDER bo góc như Locket ──
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: Stack(
-                    children: [
-                      // Camera preview
-                      SizedBox(
-                        width: double.infinity,
-                        height: double.infinity,
-                        child: FittedBox(
-                          fit: BoxFit.cover,
-                          child: SizedBox(
-                            width: _controller!.value.previewSize!.height,
-                            height: _controller!.value.previewSize!.width,
-                            child: CameraPreview(_controller!),
-                          ),
-                        ),
-                      ),
-                      // Flash + zoom badge
-                      Positioned(
-                        top: 14, left: 14,
-                        child: _cameraBtn(Icons.flash_off, () {}),
-                      ),
-                      Positioned(
-                        top: 14, right: 14,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.black45,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text('1×',
-                              style: TextStyle(color: Colors.white,
-                                  fontSize: 13, fontWeight: FontWeight.w600)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            // ── CONTROLS ─────────────────────────────────
+            _buildControls(),
 
-            // ── CONTROLS ──
-            Padding(
-              padding: const EdgeInsets.fromLTRB(40, 20, 40, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Thumb ảnh gần nhất / thư viện
-                  GestureDetector(
-                    onTap: () {},
-                    child: Container(
-                      width: 52, height: 52,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: const Icon(Icons.photo_library_outlined,
-                          color: Colors.white54, size: 24),
-                    ),
-                  ),
+            // ── LỊCH SỬ ──────────────────────────────────
+            _buildHistoryRow(),
 
-                  // Nút chụp — vàng như Locket
-                  GestureDetector(
-                    onTap: _isTakingPhoto ? null : _takePhoto,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 80),
-                      width: _isTakingPhoto ? 72 : 78,
-                      height: _isTakingPhoto ? 72 : 78,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFFFFB800),
-                          width: 4,
-                        ),
-                      ),
-                      child: Center(
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 80),
-                          width: _isTakingPhoto ? 58 : 64,
-                          height: _isTakingPhoto ? 58 : 64,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Lật camera
-                  GestureDetector(
-                    onTap: _flipCamera,
-                    child: Container(
-                      width: 52, height: 52,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: const Icon(Icons.flip_camera_ios_outlined,
-                          color: Colors.white, size: 24),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── LỊCH SỬ ảnh đã gửi ──
-            GestureDetector(
-              onTap: () {},
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFB800),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('4',
-                        style: TextStyle(color: Colors.black,
-                            fontSize: 13, fontWeight: FontWeight.w700)),
-                    SizedBox(width: 6),
-                    Text('Lịch sử',
-                        style: TextStyle(color: Colors.black,
-                            fontSize: 13, fontWeight: FontWeight.w500)),
-                    SizedBox(width: 4),
-                    Icon(Icons.keyboard_arrow_down,
-                        color: Colors.black, size: 16),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
 
-  Widget _iconBtn(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36, height: 36,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: Colors.white, size: 18),
+  // ─── Top Bar ───────────────────────────────────────
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Row(
+        children: [
+          // Notification / Flash icon (left)
+          _topIconBtn(
+            icon: Icons.volume_off_rounded,
+            onTap: () {},
+          ),
+
+          const Spacer(),
+
+          // Friends pill (center)
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, AppRoutes.friends),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.people_rounded,
+                      color: Colors.white, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$_friendCount người bạn',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const Spacer(),
+
+          // Avatar (right) — navigate to profile
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white30, width: 2),
+                color: const Color(0xFF2C2C2E),
+              ),
+              child: ClipOval(
+                child: _AvatarPlaceholder(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _cameraBtn(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 34, height: 34,
-        decoration: BoxDecoration(
-          color: Colors.black38,
-          shape: BoxShape.circle,
+  // ─── Viewfinder ────────────────────────────────────
+  Widget _buildViewfinder() {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Camera preview — fill & cover
+              FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _controller!.value.previewSize!.height,
+                  height: _controller!.value.previewSize!.width,
+                  child: CameraPreview(_controller!),
+                ),
+              ),
+
+              // Flash button — top left
+              Positioned(
+                top: 14,
+                left: 14,
+                child: GestureDetector(
+                  onTap: _toggleFlash,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.45),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _flashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+                      color: _flashOn ? const Color(0xFFFFB800) : Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Zoom badge — top right
+              Positioned(
+                top: 14,
+                right: 14,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.45),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Text(
+                    '1×',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        child: Icon(icon, color: Colors.white, size: 18),
       ),
     );
   }
 
+  // ─── Controls row ──────────────────────────────────
+  Widget _buildControls() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(44, 22, 44, 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Gallery / last photo thumbnail
+          GestureDetector(
+            onTap: () {},
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(13),
+                child: const Icon(
+                  Icons.photo_library_rounded,
+                  color: Colors.white54,
+                  size: 26,
+                ),
+              ),
+            ),
+          ),
+
+          // Shutter button — white circle + yellow ring
+          GestureDetector(
+            onTap: _isTakingPhoto ? null : _takePhoto,
+            child: ScaleTransition(
+              scale: _shutterScale,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFFFB800),
+                    width: 4.5,
+                  ),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 62,
+                    height: 62,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Flip camera
+          GestureDetector(
+            onTap: _flipCamera,
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: const BoxDecoration(
+                color: Color(0xFF1C1C1E),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.flip_camera_ios_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── History row ───────────────────────────────────
+  Widget _buildHistoryRow() {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, AppRoutes.memories),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Mini thumbnail
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2C2C2E),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: const Icon(Icons.photo_rounded,
+                  color: Colors.white38, size: 18),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Lịch sử',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_down_rounded,
+                color: Colors.white70, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Helpers ───────────────────────────────────────
+  Widget _topIconBtn({required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Color(0xFF1C1C1E),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white70, size: 18),
+      ),
+    );
+  }
+
+  // ─── State screens ─────────────────────────────────
   Widget _buildLoading() => const Scaffold(
-    backgroundColor: Colors.black,
-    body: Center(child: CircularProgressIndicator(color: Color(0xFFFFB800))),
-  );
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFFFFB800),
+            strokeWidth: 2.5,
+          ),
+        ),
+      );
 
   Widget _buildPermissionDenied() => Scaffold(
-    backgroundColor: Colors.black,
-    body: Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.camera_alt_outlined, color: Colors.white24, size: 48),
-        const SizedBox(height: 16),
-        const Text('Cần quyền camera',
-            style: TextStyle(color: Colors.white70, fontSize: 16)),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: openAppSettings,
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFB800)),
-          child: const Text('Mở Cài đặt', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.camera_alt_outlined,
+                  color: Colors.white24, size: 56),
+              const SizedBox(height: 16),
+              const Text('Cần quyền truy cập camera',
+                  style: TextStyle(color: Colors.white70, fontSize: 16)),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: openAppSettings,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFB800),
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 28, vertical: 12),
+                ),
+                child: const Text('Mở Cài đặt',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
         ),
-      ]),
-    ),
-  );
+      );
 
   Widget _buildError() => Scaffold(
-    backgroundColor: Colors.black,
-    body: Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.error_outline, color: Colors.white24, size: 48),
-        const SizedBox(height: 16),
-        const Text('Không mở được camera',
-            style: TextStyle(color: Colors.white70)),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: _initCamera,
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFB800)),
-          child: const Text('Thử lại', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline,
+                  color: Colors.white24, size: 56),
+              const SizedBox(height: 16),
+              const Text('Không mở được camera',
+                  style: TextStyle(color: Colors.white70, fontSize: 16)),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _initCamera,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFB800),
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 28, vertical: 12),
+                ),
+                child: const Text('Thử lại',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
         ),
-      ]),
-    ),
-  );
+      );
+}
+
+// ── Avatar placeholder ─────────────────────────────────
+class _AvatarPlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF3A3A3C),
+      child: const Icon(Icons.person_rounded, color: Colors.white54, size: 22),
+    );
+  }
 }

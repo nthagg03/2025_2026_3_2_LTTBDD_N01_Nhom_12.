@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../features/auth/screens/email_entry_screen.dart';
 import '../features/auth/screens/login_screen.dart';
-import '../features/auth/screens/register_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/feed/screens/feed_screen.dart';
 import '../features/friends/screens/friends_screen.dart';
@@ -40,9 +40,13 @@ class AppRoutes {
           transitionDuration: const Duration(milliseconds: 300),
         );
       case register:
-        return MaterialPageRoute(builder: (_) => const RegisterScreen());
+        return MaterialPageRoute(
+          builder: (_) => const EmailEntryScreen(isSignUp: true),
+        );
       case signIn:
-        return MaterialPageRoute(builder: (_) => const SignInScreen());
+        return MaterialPageRoute(
+          builder: (_) => const EmailEntryScreen(isSignUp: false),
+        );
       case home:
         return MaterialPageRoute(builder: (_) => const MainShell());
       case feed:

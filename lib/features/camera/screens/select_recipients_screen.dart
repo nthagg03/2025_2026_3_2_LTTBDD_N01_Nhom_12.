@@ -25,7 +25,7 @@ class SelectRecipientsScreen extends StatefulWidget {
 class _SelectRecipientsScreenState extends State<SelectRecipientsScreen> {
   final Set<int> _selectedIndexes = {};
 
-  final List<String> _friends = const ['Tân', 'Nam', 'Thắng', 'An Thuyên'];
+  final List<String> _friends = const ['VuPhuong', 'Nam', 'Thắng', 'An Thuyên'];
 
   bool _isSending = false;
 

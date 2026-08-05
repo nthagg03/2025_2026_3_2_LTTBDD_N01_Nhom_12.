@@ -76,10 +76,6 @@ class _SignInScreenState extends State<SignInScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Đăng nhập',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-        ),
       ),
       body: SafeArea(
         child: Center(
@@ -123,7 +119,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 const SizedBox(height: 28),
 
                 AuthButton(
-                  label: 'Đăng nhập',
+                  label: 'Tiếp tục',
                   isPrimary: true,
                   isLoading: _isLoading,
                   onPressed: _submitSignIn,

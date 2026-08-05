@@ -126,49 +126,6 @@ class _SplashScreenState extends State<SplashScreen>
                           letterSpacing: 0.8,
                         ),
                       ),
-
-                      const SizedBox(height: 8),
-
-                      const Text(
-                        'Chạm biểu tượng để bắt đầu',
-                        style: TextStyle(
-                          color: Color(0x99FFFFFF),
-                          fontSize: 14,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-
-                      const SizedBox(height: 48),
-
-                      GestureDetector(
-                        onTap: _goToLogin,
-                        child: Container(
-                          width: 140,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFB800),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFFFB800).withValues(alpha: 0.4),
-                                blurRadius: 20,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'Bắt đầu',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),

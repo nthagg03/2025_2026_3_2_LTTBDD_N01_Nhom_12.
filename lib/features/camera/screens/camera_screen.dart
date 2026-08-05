@@ -1,8 +1,14 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+
 import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 import '../../../routes/app_routes.dart';
+import '../../friends/services/friend_service.dart';
+import '../../history/services/history_service.dart';
 import 'send_photo_screen.dart';
+
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -25,12 +31,12 @@ class _CameraScreenState extends State<CameraScreen>
   late AnimationController _shutterAnim;
   late Animation<double> _shutterScale;
 
-  static const int _friendCount = 23;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    HistoryService.instance.addListener(_onHistoryChanged);
     _shutterAnim = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 100),
@@ -46,10 +52,16 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    HistoryService.instance.removeListener(_onHistoryChanged);
     _shutterAnim.dispose();
     _controller?.dispose();
     super.dispose();
   }
+
+  void _onHistoryChanged() {
+    if (mounted) setState(() {});
+  }
+
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -151,26 +163,60 @@ class _CameraScreenState extends State<CameraScreen>
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ── TOP BAR ──────────────────────────────────
-            _buildTopBar(),
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragEnd: (details) {
+          if (details.primaryVelocity != null &&
+              details.primaryVelocity! < -150) {
+            // Swipe UP -> History Photo Feed Screen
+            Navigator.pushNamed(context, AppRoutes.historyFeed);
+          }
+        },
+        onHorizontalDragEnd: (details) {
+          if (details.primaryVelocity != null &&
+              details.primaryVelocity! > 150) {
+            // Swipe right -> Memories (Kỷ niệm calendar)
+            Navigator.pushNamed(context, AppRoutes.memories);
+          } else if (details.primaryVelocity != null &&
+              details.primaryVelocity! < -150) {
+            // Swipe left -> Feed / Messaging
+            Navigator.pushNamed(context, AppRoutes.feed);
+          }
+        },
 
-            // ── VIEWFINDER ───────────────────────────────
-            _buildViewfinder(),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // ── TOP BAR ──────────────────────────────────
+              _buildTopBar(),
 
-            // ── CONTROLS ─────────────────────────────────
-            _buildControls(),
+              const Spacer(),
 
-            // ── LỊCH SỬ ──────────────────────────────────
-            _buildHistoryRow(),
+              // ── VIEWFINDER (SQUARE) ──────────────────────
+              _buildViewfinder(),
 
-            const SizedBox(height: 8),
-          ],
+              const Spacer(),
+
+              // ── CONTROLS ─────────────────────────────────
+              _buildControls(),
+
+              const SizedBox(height: 8),
+
+              // ── LỊCH SỬ ──────────────────────────────────
+              _buildHistoryRow(),
+
+              const SizedBox(height: 14),
+
+              // ── BOTTOM DOCK ──────────────────────────────
+              _buildBottomDock(),
+
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
       ),
     );
+
   }
 
   // ─── Top Bar ───────────────────────────────────────
@@ -179,9 +225,9 @@ class _CameraScreenState extends State<CameraScreen>
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
       child: Row(
         children: [
-          // Notification / Flash icon (left)
+          // Announcement / Speaker icon (left)
           _topIconBtn(
-            icon: Icons.volume_off_rounded,
+            icon: Icons.campaign_outlined,
             onTap: () {},
           ),
 
@@ -197,21 +243,27 @@ class _CameraScreenState extends State<CameraScreen>
                 color: const Color(0xFF1C1C1E),
                 borderRadius: BorderRadius.circular(22),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.people_rounded,
-                      color: Colors.white, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$_friendCount người bạn',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+              child: AnimatedBuilder(
+                animation: FriendService.instance,
+                builder: (context, _) {
+                  final count = FriendService.instance.friendCount;
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.people_rounded,
+                          color: Colors.white, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$count người bạn',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -239,13 +291,14 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
-  // ─── Viewfinder ────────────────────────────────────
+  // ─── Viewfinder (Square 1:1) ───────────────────────
   Widget _buildViewfinder() {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: AspectRatio(
+        aspectRatio: 1.0,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(36),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -269,12 +322,15 @@ class _CameraScreenState extends State<CameraScreen>
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.45),
+                      color: Colors.black.withValues(alpha: 0.35),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      _flashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
-                      color: _flashOn ? const Color(0xFFFFB800) : Colors.white,
+                      _flashOn
+                          ? Icons.flash_on_rounded
+                          : Icons.flash_off_rounded,
+                      color:
+                          _flashOn ? const Color(0xFFFFB800) : Colors.white,
                       size: 18,
                     ),
                   ),
@@ -289,7 +345,7 @@ class _CameraScreenState extends State<CameraScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.45),
+                    color: Colors.black.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Text(
@@ -308,6 +364,58 @@ class _CameraScreenState extends State<CameraScreen>
       ),
     );
   }
+
+  // ─── Bottom Navigation Dock ───────────────────────
+  Widget _buildBottomDock() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E24),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Left: Photo History (Lịch sử ảnh đã chụp)
+          IconButton(
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.memories),
+            icon: const Icon(
+              Icons.grid_view_rounded,
+              color: Colors.white60,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Center: Home (Camera Screen - current screen)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.home_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Right: Messaging / Chat Screen
+          IconButton(
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.feed),
+            icon: const Icon(
+              Icons.chat_bubble_rounded,
+              color: Colors.white60,
+              size: 22,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   // ─── Controls row ──────────────────────────────────
   Widget _buildControls() {
@@ -392,8 +500,25 @@ class _CameraScreenState extends State<CameraScreen>
 
   // ─── History row ───────────────────────────────────
   Widget _buildHistoryRow() {
+    final photos = HistoryService.instance.photos;
+    final latestPhoto = photos.isNotEmpty ? photos.last : null;
+
+    Widget thumb;
+    if (latestPhoto != null) {
+      final path = latestPhoto.imagePath;
+      if (path.startsWith('lib/') || path.startsWith('assets/')) {
+        thumb = Image.asset(path, fit: BoxFit.cover);
+      } else if (File(path).existsSync()) {
+        thumb = Image.file(File(path), fit: BoxFit.cover);
+      } else {
+        thumb = const Icon(Icons.photo_rounded, color: Colors.white38, size: 18);
+      }
+    } else {
+      thumb = const Icon(Icons.photo_rounded, color: Colors.white38, size: 18);
+    }
+
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, AppRoutes.memories),
+      onTap: () => Navigator.pushNamed(context, AppRoutes.historyFeed),
       child: Padding(
         padding: const EdgeInsets.only(bottom: 4),
         child: Row(
@@ -408,8 +533,10 @@ class _CameraScreenState extends State<CameraScreen>
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.white12),
               ),
-              child: const Icon(Icons.photo_rounded,
-                  color: Colors.white38, size: 18),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: thumb,
+              ),
             ),
             const SizedBox(width: 8),
             const Text(
@@ -421,13 +548,17 @@ class _CameraScreenState extends State<CameraScreen>
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down_rounded,
-                color: Colors.white70, size: 20),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.white70,
+              size: 20,
+            ),
           ],
         ),
       ),
     );
   }
+
 
   // ─── Helpers ───────────────────────────────────────
   Widget _topIconBtn({required IconData icon, required VoidCallback onTap}) {

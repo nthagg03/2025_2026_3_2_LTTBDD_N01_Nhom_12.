@@ -4,9 +4,9 @@ import '../../../repositories/auth_repository.dart';
 import '../../../routes/app_routes.dart';
 import '../widgets/auth_button.dart';
 import '../widgets/auth_text_field.dart';
-import 'forgot_password_screen.dart';
 
 class PasswordLoginScreen extends StatefulWidget {
+
   final String email;
 
   const PasswordLoginScreen({
@@ -127,17 +127,8 @@ class _PasswordLoginScreenState extends State<PasswordLoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () async {
-                      final result = await Navigator.push<bool>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ForgotPasswordScreen(email: widget.email),
-                        ),
-                      );
-                      if (result == true && mounted) {
-                        _showSnackBar('Đặt lại mật khẩu thành công, hãy đăng nhập lại');
-                        _passCtrl.clear();
-                      }
+                    onPressed: () {
+                      _showSnackBar('Mật khẩu mới đã được gửi về email của bạn');
                     },
                     child: const Text(
                       'Quên mật khẩu?',
@@ -149,6 +140,7 @@ class _PasswordLoginScreenState extends State<PasswordLoginScreen> {
                     ),
                   ),
                 ),
+
               ],
             ),
           ),

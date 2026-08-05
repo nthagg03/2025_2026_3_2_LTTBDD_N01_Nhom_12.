@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../features/auth/screens/email_entry_screen.dart';
 import '../features/auth/screens/login_screen.dart';
-import '../features/auth/screens/sign_in_screen.dart';
-import '../features/feed/screens/feed_screen.dart';
+
+import '../features/chat/screens/chat_screen.dart';
+
 import '../features/friends/screens/friends_screen.dart';
+import '../features/history/screens/history_feed_screen.dart';
 import '../features/history/screens/history_screen.dart';
 import '../features/home_widget/screens/home_widget_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
@@ -21,6 +23,7 @@ class AppRoutes {
   static const String home = '/home';
   static const String feed = '/feed';
   static const String memories = '/memories';
+  static const String historyFeed = '/history-feed';
   static const String friends = '/friends';
   static const String profile = '/profile';
   static const String settings = '/settings';
@@ -50,13 +53,98 @@ class AppRoutes {
       case home:
         return MaterialPageRoute(builder: (_) => const MainShell());
       case feed:
-        return MaterialPageRoute(builder: (_) => const FeedScreen());
+        return PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const ChatScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeOutCubic;
+            var tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        );
+
+
       case memories:
-        return MaterialPageRoute(builder: (_) => const HistoryScreen());
+        return PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const HistoryScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(-1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeOutCubic;
+            var tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        );
+
+      case historyFeed:
+        return PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const HistoryFeedScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(0.0, 1.0);
+            const end = Offset.zero;
+            const curve = Curves.easeOutCubic;
+            var tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        );
+
       case friends:
-        return MaterialPageRoute(builder: (_) => const FriendsScreen());
+        return PageRouteBuilder(
+          opaque: false,
+          barrierColor: Colors.black.withValues(alpha: 0.6),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const FriendsScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(0.0, 1.0);
+            const end = Offset.zero;
+            const curve = Curves.easeOutCubic;
+            var tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        );
+
       case profile:
-        return MaterialPageRoute(builder: (_) => const ProfileScreen());
+        return PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const ProfileScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(0.0, 1.0);
+            const end = Offset.zero;
+            const curve = Curves.easeOutCubic;
+            var tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        );
+
       case settings:
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
       case homeWidget:

@@ -2,6 +2,7 @@ class FriendModel {
   final String id;
   final String name;
   final String avatar;
+  final String? badgeEmoji;
   final String? bio;
   final DateTime friendsSince;
 
@@ -9,6 +10,7 @@ class FriendModel {
     required this.id,
     required this.name,
     required this.avatar,
+    this.badgeEmoji,
     this.bio,
     required this.friendsSince,
   });
@@ -34,6 +36,7 @@ class FriendSuggestionModel {
   final String id;
   final String name;
   final String avatar;
+  final String subtitle;
   final int mutualFriends;
   bool requestSent;
 
@@ -41,7 +44,9 @@ class FriendSuggestionModel {
     required this.id,
     required this.name,
     required this.avatar,
+    required this.subtitle,
     required this.mutualFriends,
     this.requestSent = false,
   });
 }
+

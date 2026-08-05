@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../models/friend_model.dart';
 import '../services/friend_service.dart';
-import '../widgets/person_list_tile.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -11,283 +10,29 @@ class FriendsScreen extends StatefulWidget {
   State<FriendsScreen> createState() => _FriendsScreenState();
 }
 
-class _FriendsScreenState extends State<FriendsScreen>
-    with SingleTickerProviderStateMixin {
-  final FriendService _service = FriendService();
-  late TabController _tabController;
-
-  List<FriendModel> _friends = [];
-  List<FriendRequestModel> _requests = [];
-  List<FriendSuggestionModel> _suggestions = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _loadAll();
-  }
+class _FriendsScreenState extends State<FriendsScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+  bool _isExpanded = false;
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadAll() async {
-    setState(() => _isLoading = true);
-    final results = await Future.wait([
-      _service.getFriends(),
-      _service.getIncomingRequests(),
-      _service.getSuggestions(),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _friends = results[0] as List<FriendModel>;
-      _requests = results[1] as List<FriendRequestModel>;
-      _suggestions = results[2] as List<FriendSuggestionModel>;
-      _isLoading = false;
-    });
-  }
-
-  void _showRemoveDialog(FriendModel friend) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF13132A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.person_remove_rounded,
-                    color: Colors.redAccent),
-                title: const Text(
-                  'Hủy kết bạn',
-                  style: TextStyle(color: Colors.redAccent),
-                ),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final messenger = ScaffoldMessenger.of(context);
-                  await _service.removeFriend(friend.id);
-                  if (!mounted) return;
-                  await _loadAll();
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Đã hủy kết bạn với ${friend.name}'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.close_rounded, color: Colors.white54),
-                title: const Text(
-                  'Đóng',
-                  style: TextStyle(color: Colors.white54),
-                ),
-                onTap: () => Navigator.pop(ctx),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmpty(String message) {
-    return Center(
-      child: Text(
-        message,
-        style: const TextStyle(color: Color(0x99FFFFFF), fontSize: 15),
-      ),
-    );
-  }
-
-  Widget _buildFriendsTab() {
-    if (_friends.isEmpty) {
-      return _buildEmpty('Chưa có bạn bè nào');
-    }
-    return RefreshIndicator(
-      color: const Color(0xFFFFB800),
-      backgroundColor: const Color(0xFF13132A),
-      onRefresh: _loadAll,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _friends.length,
-        separatorBuilder: (_, index) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final friend = _friends[index];
-          return PersonListTile.fromFriend(
-            friend: friend,
-            trailing: IconButton(
-              icon: const Icon(Icons.more_horiz_rounded,
-                  color: Colors.white54),
-              onPressed: () => _showRemoveDialog(friend),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildRequestsTab() {
-    if (_requests.isEmpty) {
-      return _buildEmpty('Chưa có lời mời kết bạn nào');
-    }
-    return RefreshIndicator(
-      color: const Color(0xFFFFB800),
-      backgroundColor: const Color(0xFF13132A),
-      onRefresh: _loadAll,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _requests.length,
-        separatorBuilder: (_, index) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final req = _requests[index];
-          return PersonListTile(
-            name: req.fromUserName,
-            avatar: req.fromUserAvatar,
-            subtitle: 'Đã gửi lời mời',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Accept
-                GestureDetector(
-                  onTap: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    await _service.acceptRequest(req.id);
-                    if (!mounted) return;
-                    await _loadAll();
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                            'Đã chấp nhận lời mời của ${req.fromUserName}'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFFB800),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.check_rounded,
-                        color: Colors.black, size: 20),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Decline
-                GestureDetector(
-                  onTap: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    await _service.declineRequest(req.id);
-                    if (!mounted) return;
-                    await _loadAll();
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text('Đã từ chối lời mời'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF2A2A44)),
-                    ),
-                    child: const Icon(Icons.close_rounded,
-                        color: Colors.white54, size: 20),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildSuggestionsTab() {
-    if (_suggestions.isEmpty) {
-      return _buildEmpty('Không có gợi ý nào');
-    }
-    return RefreshIndicator(
-      color: const Color(0xFFFFB800),
-      backgroundColor: const Color(0xFF13132A),
-      onRefresh: _loadAll,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _suggestions.length,
-        separatorBuilder: (_, index) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final suggestion = _suggestions[index];
-          return PersonListTile(
-            name: suggestion.name,
-            avatar: suggestion.avatar,
-            subtitle: '${suggestion.mutualFriends} bạn chung',
-            trailing: suggestion.requestSent
-                ? Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A44),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      'Đã gửi',
-                      style: TextStyle(color: Colors.white38, fontSize: 13),
-                    ),
-                  )
-                : GestureDetector(
-                    onTap: () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      await _service.sendFriendRequest(suggestion.id);
-                      if (!mounted) return;
-                      await _loadAll();
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              'Đã gửi lời mời đến ${suggestion.name}'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFB800),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'Kết bạn',
-                        style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-          );
-        },
+  void _onAddFromSearch() {
+    final text = _searchQuery.trim();
+    if (text.isEmpty) return;
+    FriendService.instance.addFriendByName(text);
+    _searchCtrl.clear();
+    setState(() => _searchQuery = '');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Đã kết bạn với "$text" 💛'),
+        backgroundColor: const Color(0xFFFFC107),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -295,44 +40,409 @@ class _FriendsScreenState extends State<FriendsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A14),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A14),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Bạn bè',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFFFFB800),
-          unselectedLabelColor: Colors.white54,
-          indicatorColor: const Color(0xFFFFB800),
-          indicatorSize: TabBarIndicatorSize.label,
-          tabs: [
-            Tab(text: 'Bạn bè (${_friends.length})'),
-            Tab(text: 'Lời mời (${_requests.length})'),
-            const Tab(text: 'Gợi ý'),
-          ],
-        ),
+      backgroundColor: Colors.transparent,
+      body: GestureDetector(
+        onVerticalDragEnd: (details) {
+          if (details.primaryVelocity != null &&
+              details.primaryVelocity! > 150) {
+            Navigator.pop(context);
+          }
+        },
+        child: Container(
+          margin: const EdgeInsets.only(top: 48),
+          decoration: const BoxDecoration(
+            color: Color(0xFF141416),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: AnimatedBuilder(
+              animation: FriendService.instance,
+              builder: (context, _) {
+                final allFriends = FriendService.instance.friends;
+                final allSuggestions = FriendService.instance.suggestions;
+
+                final filteredFriends = allFriends.where((f) {
+                  return f.name
+                      .toLowerCase()
+                      .contains(_searchQuery.toLowerCase());
+                }).toList();
+
+                final filteredSuggestions = allSuggestions.where((s) {
+                  return s.name
+                      .toLowerCase()
+                      .contains(_searchQuery.toLowerCase());
+                }).toList();
+
+                final displayedFriends =
+                    (_isExpanded || _searchQuery.isNotEmpty)
+                        ? filteredFriends
+                        : filteredFriends.take(3).toList();
+
+                return Column(
+                  children: [
+                    // Top drag handle bar (Tap or drag down to close)
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: Container(
+                            width: 40,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: Colors.white38,
+                              borderRadius: BorderRadius.circular(2.5),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Top Header (Count + Subtitle)
+                    GestureDetector(
+                      onVerticalDragEnd: (details) {
+                        if (details.primaryVelocity != null &&
+                            details.primaryVelocity! > 100) {
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: Column(
+                        children: [
+                          Text(
+                            '${allFriends.length} / 20 người bạn',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Thêm các bạn thân của bạn',
+                            style: TextStyle(
+                              color: Colors.white60,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Search Bar
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF242426),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: TextField(
+                          controller: _searchCtrl,
+                          onChanged: (val) =>
+                              setState(() => _searchQuery = val),
+                          onSubmitted: (_) => _onAddFromSearch(),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 15),
+                          decoration: InputDecoration(
+                            hintText: 'Thêm một người bạn mới',
+                            hintStyle: const TextStyle(
+                                color: Colors.white38, fontSize: 14),
+                            prefixIcon: const Icon(
+                              Icons.search_rounded,
+                              color: Colors.white60,
+                              size: 22,
+                            ),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(
+                                        Icons.add_circle_rounded,
+                                        color: Color(0xFFFFC107)),
+                                    onPressed: _onAddFromSearch,
+                                  )
+                                : null,
+                            border: InputBorder.none,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Main Scroll View
+                    Expanded(
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: (scrollInfo) {
+                          if (scrollInfo is OverscrollNotification &&
+                              scrollInfo.overscroll < -10) {
+                            Navigator.pop(context);
+                            return true;
+                          }
+                          return false;
+                        },
+                        child: ListView(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 8),
+                          children: [
+
+                      // Section 1: Bạn bè của bạn
+                      if (filteredFriends.isNotEmpty) ...[
+                        Row(
+                          children: const [
+                            Icon(Icons.groups_rounded, color: Colors.white, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'Bạn bè của bạn',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        ...displayedFriends.map((friend) => _buildFriendItem(friend)),
+
+                        // "Xem thêm" / "Thu gọn" button
+                        if (filteredFriends.length > 3 && _searchQuery.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Row(
+                              children: [
+                                const Expanded(child: Divider(color: Colors.white12, thickness: 1)),
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTap: () => setState(() => _isExpanded = !_isExpanded),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF242426),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      _isExpanded ? 'Thu gọn' : 'Xem thêm',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Expanded(child: Divider(color: Colors.white12, thickness: 1)),
+                              ],
+                            ),
+                          ),
+
+                        const SizedBox(height: 24),
+                      ],
+
+                      // Section 2: Các đề xuất
+                      if (filteredSuggestions.isNotEmpty) ...[
+                        Row(
+                          children: const [
+                            Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'Các đề xuất',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        ...filteredSuggestions.map((sug) => _buildSuggestionItem(sug)),
+                      ],
+
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFFB800)),
-            )
-          : TabBarView(
-              controller: _tabController,
+    ),
+  ),
+),
+);
+}
+
+
+
+
+  Widget _buildFriendItem(FriendModel friend) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          // Yellow ring Avatar
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                padding: const EdgeInsets.all(2.5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFFC107), width: 2),
+                ),
+                child: CircleAvatar(
+                  backgroundColor: const Color(0xFF2C2C2E),
+                  child: Text(
+                    friend.avatar,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              if (friend.badgeEmoji != null)
+                Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.black,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      friend.badgeEmoji!,
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 14),
+
+          // Friend Name
+          Expanded(
+            child: Text(
+              friend.name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+
+          // Remove Friend 'X'
+          IconButton(
+            icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 20),
+            onPressed: () {
+              FriendService.instance.removeFriend(friend.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Đã hủy kết bạn với ${friend.name}'),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestionItem(FriendSuggestionModel sug) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        children: [
+          // Dark circle Avatar
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: const Color(0xFF2A2A2E),
+            child: Text(
+              sug.avatar,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+
+          // Name + Subtitle
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildFriendsTab(),
-                _buildRequestsTab(),
-                _buildSuggestionsTab(),
+                Text(
+                  sug.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sug.subtitle,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
+          ),
+
+          // Yellow "+ Thêm" button
+          GestureDetector(
+            onTap: () {
+              FriendService.instance.addFriendFromSuggestion(sug);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Đã thêm ${sug.name} vào danh sách bạn bè 💛'),
+                  backgroundColor: const Color(0xFFFFC107),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFC107),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                '+ Thêm',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
+

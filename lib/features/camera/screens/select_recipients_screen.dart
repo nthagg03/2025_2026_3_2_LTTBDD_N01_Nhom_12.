@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../friends/services/friend_service.dart';
 import '../../history/models/history_photo.dart';
 import '../../history/services/history_service.dart';
 
@@ -25,9 +26,11 @@ class SelectRecipientsScreen extends StatefulWidget {
 class _SelectRecipientsScreenState extends State<SelectRecipientsScreen> {
   final Set<int> _selectedIndexes = {};
 
-  final List<String> _friends = const ['VuPhuong', 'Nam', 'Thắng', 'An Thuyên'];
+  List<String> get _friends =>
+      FriendService.instance.friends.map((f) => f.name).toList();
 
   bool _isSending = false;
+
 
   bool get _isAllSelected =>
       _friends.isNotEmpty && _selectedIndexes.length == _friends.length;

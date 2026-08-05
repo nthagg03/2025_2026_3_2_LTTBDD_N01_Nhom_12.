@@ -10,36 +10,22 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="912e91a8-b761-4bc7-b1be-7f407b5371e8" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/android/build/reports/problems/problems-report.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/features/auth/screens/create_password_screen.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/features/auth/screens/email_entry_screen.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/features/auth/screens/forgot_password_screen.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/features/auth/screens/password_login_screen.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/features/auth/screens/reset_password_screen.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/features/auth/widgets/auth_text_field.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/features/camera/screens/send_photo_screen.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test/auth_repository_test.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/package_config.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_config.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/package_graph.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_graph.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/auth/screens/register_screen.dart" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/auth/screens/sign_in_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/screens/sign_in_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/auth/screens/sign_in_screen.dart" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/camera/screens/camera_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/camera/screens/camera_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/camera/screens/photo_preview_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/camera/screens/photo_preview_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/camera/screens/photo_preview_screen.dart" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/camera/screens/select_recipients_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/camera/screens/select_recipients_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/profile/services/profile_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/profile/services/profile_service.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/models/app_user.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/models/app_user.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/repositories/auth_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/repositories/auth_repository.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/repositories/fake_user_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/repositories/fake_user_repository.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/camera/screens/send_photo_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/camera/screens/send_photo_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/feed/screens/feed_screen.dart" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/friends/models/friend_model.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/friends/models/friend_model.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/friends/screens/friends_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/friends/screens/friends_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/friends/services/friend_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/friends/services/friend_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/history/screens/history_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/history/screens/history_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/history/services/history_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/history/services/history_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/profile/screens/profile_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/profile/screens/profile_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/splash/screens/splash_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/splash/screens/splash_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/routes/app_routes.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/routes/app_routes.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/linux/flutter/generated_plugins.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/linux/flutter/generated_plugins.cmake" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/locket.iml" beforeDir="false" afterPath="$PROJECT_DIR$/locket.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pubspec.lock" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/windows/flutter/generated_plugins.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/windows/flutter/generated_plugins.cmake" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -82,28 +68,28 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Flutter.main.dart.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.cidr.known.project.marker": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.readMode.enableVisualFormatting": "true",
-    "cf.first.check.clang-format": "false",
-    "cidr.known.project.marker": "true",
-    "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "xuanthang",
-    "io.flutter.project.isFirstOpen": "true",
-    "io.flutter.reload.alreadyRun": "true",
-    "kotlin-language-version-configured": "true",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
-    "settings.editor.selected.configurable": "templates.modelproviders.configurable",
-    "show.migrate.to.gradle.popup": "false"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Flutter.main.dart.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;xuanthang&quot;,
+    &quot;io.flutter.project.isFirstOpen&quot;: &quot;true&quot;,
+    &quot;io.flutter.reload.alreadyRun&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;templates.modelproviders.configurable&quot;,
+    &quot;show.migrate.to.gradle.popup&quot;: &quot;false&quot;
   }
-}]]></component>
+}</component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="912e91a8-b761-4bc7-b1be-7f407b5371e8" name="Changes" comment="" />

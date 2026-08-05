@@ -3,15 +3,22 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../friends/services/friend_service.dart';
 import '../../history/models/history_photo.dart';
 import '../../history/services/history_service.dart';
 
-/// A simple friend data model for the send screen.
-class _Friend {
-  final String name;
-  final Color color;
-  const _Friend({required this.name, required this.color});
-}
+const List<Color> _avatarColors = [
+  Color(0xFF7F77DD),
+  Color(0xFF4CAF50),
+  Color(0xFFE91E63),
+  Color(0xFF2196F3),
+  Color(0xFFFF9800),
+  Color(0xFF9C27B0),
+  Color(0xFF00BCD4),
+];
+
+Color _getColorForIndex(int index) =>
+    _avatarColors[index % _avatarColors.length];
 
 /// Locket-style screen for sending a photo.
 /// Combines image preview + caption input + friend selection in one screen.
@@ -42,17 +49,10 @@ class _SendPhotoScreenState extends State<SendPhotoScreen>
   final Set<int> _selectedFriends = {};
   bool _selectAll = false;
 
-  final List<_Friend> _friends = const [
-    _Friend(name: 'Nam', color: Color(0xFF7F77DD)),
-    _Friend(name: 'VuPhuong', color: Color(0xFF4CAF50)),
-    _Friend(name: 'XThang', color: Color(0xFFE91E63)),
-    _Friend(name: 'Son', color: Color(0xFF2196F3)),
-    _Friend(name: 'MCK', color: Color(0xFFFF9800)),
-  ];
-
   // Send button subtle pulse animation
   late AnimationController _pulseAnim;
   late Animation<double> _pulseScale;
+
 
   @override
   void initState() {
@@ -129,12 +129,17 @@ class _SendPhotoScreenState extends State<SendPhotoScreen>
 
       await Future<void>.delayed(const Duration(milliseconds: 700));
 
+      final realFriends = FriendService.instance.friends;
       final List<String> recipients;
       if (_selectAll) {
-        recipients = _friends.map((f) => f.name).toList();
+        recipients = realFriends.map((f) => f.name).toList();
       } else {
-        recipients = _selectedFriends.map((i) => _friends[i].name).toList();
+        recipients = _selectedFriends
+            .where((i) => i < realFriends.length)
+            .map((i) => realFriends[i].name)
+            .toList();
       }
+
 
       HistoryService.instance.addPhoto(
         HistoryPhoto(
@@ -194,14 +199,17 @@ class _SendPhotoScreenState extends State<SendPhotoScreen>
           child: Column(
             children: [
               _buildTopBar(),
+              const Spacer(),
               _buildImagePreview(),
+              const Spacer(),
               _buildDotsIndicator(),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               _buildMiddleActions(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildFriendRow(),
               const SizedBox(height: 16),
             ],
+
           ),
         ),
       ),
@@ -249,11 +257,12 @@ class _SendPhotoScreenState extends State<SendPhotoScreen>
 
   // ── Image Preview ──────────────────────────────────────────────────────────
   Widget _buildImagePreview() {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: AspectRatio(
+        aspectRatio: 1.0,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(36),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -284,6 +293,7 @@ class _SendPhotoScreenState extends State<SendPhotoScreen>
       ),
     );
   }
+
 
   Widget _buildCaptionOverlay() {
     if (!_isCaptionVisible) {
@@ -497,54 +507,64 @@ class _SendPhotoScreenState extends State<SendPhotoScreen>
 
   // ── Friend Row ─────────────────────────────────────────────────────────────
   Widget _buildFriendRow() {
-    return SizedBox(
-      height: 80,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          // "Tất cả" avatar
-          _buildFriendAvatar(
-            label: 'Tất cả',
-            selected: _selectAll,
-            onTap: _toggleAll,
-            avatarChild: const Icon(
-              Icons.groups_rounded,
-              color: Colors.white,
-              size: 24,
-            ),
-            accentColor: const Color(0xFFFFB800),
-            bgColor: const Color(0xFF3A3A3A),
-          ),
-          const SizedBox(width: 12),
-          // Individual friends
-          ..._friends.asMap().entries.map((e) {
-            final i = e.key;
-            final f = e.value;
-            final selected = _selectedFriends.contains(i);
-            return Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: _buildFriendAvatar(
-                label: f.name,
-                selected: selected,
-                onTap: () => _toggleFriend(i),
-                avatarChild: Text(
-                  f.name[0].toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
+    return AnimatedBuilder(
+      animation: FriendService.instance,
+      builder: (context, _) {
+        final realFriends = FriendService.instance.friends;
+
+        return SizedBox(
+          height: 80,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              // "Tất cả" avatar
+              _buildFriendAvatar(
+                label: 'Tất cả',
+                selected: _selectAll,
+                onTap: _toggleAll,
+                avatarChild: const Icon(
+                  Icons.groups_rounded,
+                  color: Colors.white,
+                  size: 24,
                 ),
-                accentColor: f.color,
-                bgColor: f.color.withValues(alpha: 0.45),
+                accentColor: const Color(0xFFFFB800),
+                bgColor: const Color(0xFF3A3A3A),
               ),
-            );
-          }),
-        ],
-      ),
+              const SizedBox(width: 12),
+              // Individual real friends from FriendService
+              ...realFriends.asMap().entries.map((e) {
+                final i = e.key;
+                final f = e.value;
+                final selected = _selectedFriends.contains(i);
+                final color = _getColorForIndex(i);
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: _buildFriendAvatar(
+                    label: f.name,
+                    selected: selected,
+                    onTap: () => _toggleFriend(i),
+                    avatarChild: Text(
+                      f.avatar,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    accentColor: color,
+                    bgColor: color.withValues(alpha: 0.45),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
+
 
   Widget _buildFriendAvatar({
     required String label,

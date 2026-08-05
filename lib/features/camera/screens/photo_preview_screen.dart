@@ -1,12 +1,17 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'select_recipients_screen.dart';
+import 'send_photo_screen.dart';
 
 class PhotoPreviewScreen extends StatefulWidget {
   final Uint8List imageBytes;
+  final String? imagePath;
 
-  const PhotoPreviewScreen({super.key, required this.imageBytes});
+  const PhotoPreviewScreen({
+    super.key,
+    required this.imageBytes,
+    this.imagePath,
+  });
 
   @override
   State<PhotoPreviewScreen> createState() => _PhotoPreviewScreenState();
@@ -35,9 +40,10 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SelectRecipientsScreen(
+        builder: (context) => SendPhotoScreen(
           imageBytes: widget.imageBytes,
-          caption: caption,
+          imagePath: widget.imagePath,
+          initialCaption: caption,
         ),
       ),
     );

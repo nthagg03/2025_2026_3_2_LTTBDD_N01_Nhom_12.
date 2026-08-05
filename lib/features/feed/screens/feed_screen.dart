@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/date_utils.dart';
 import '../models/feed_item_model.dart';
 import '../services/feed_service.dart';
+import '../widgets/reaction_bar.dart';
 import 'full_photo_screen.dart';
 
 class FeedScreen extends StatefulWidget {
@@ -31,6 +34,18 @@ class _FeedScreenState extends State<FeedScreen> {
       _items = items;
       _isLoading = false;
     });
+  }
+
+  Future<void> _handleReaction(String postId, String emoji) async {
+    final updated = await _feedService.toggleReaction(postId, emoji);
+    if (updated != null && mounted) {
+      setState(() {
+        final index = _items.indexWhere((p) => p.id == postId);
+        if (index != -1) {
+          _items[index] = updated;
+        }
+      });
+    }
   }
 
   @override
@@ -67,7 +82,8 @@ class _FeedScreenState extends State<FeedScreen> {
                   : ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: _items.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 20),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 20),
                       itemBuilder: (context, index) {
                         final item = _items[index];
                         return _buildFeedCard(item);
@@ -127,23 +143,20 @@ class _FeedScreenState extends State<FeedScreen> {
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.more_horiz_rounded, color: Colors.white54),
-                  onPressed: () {},
-                ),
               ],
             ),
           ),
 
-          // Photo Preview Card
+          // Photo Preview Container
           GestureDetector(
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => FullPhotoScreen(feedItem: item),
                 ),
               );
+              _loadFeed();
             },
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 10),
@@ -157,22 +170,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.asset(
-                      item.imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: const Color(0xFF1C1C2E),
-                          child: const Center(
-                            child: Icon(
-                              Icons.image_not_supported_rounded,
-                              color: Colors.white38,
-                              size: 40,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                    _buildImageWidget(item.imageUrl),
                     Positioned(
                       bottom: 12,
                       right: 12,
@@ -260,10 +258,10 @@ class _FeedScreenState extends State<FeedScreen> {
                       ),
                     ),
                     const Spacer(),
-                    const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      color: Colors.white54,
-                      size: 20,
+                    ReactionBar(
+                      activeReaction: item.userReaction,
+                      onReactionSelected: (emoji) =>
+                          _handleReaction(item.id, emoji),
                     ),
                   ],
                 ),
@@ -271,6 +269,34 @@ class _FeedScreenState extends State<FeedScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildImageWidget(String path) {
+    if (path.startsWith('/') || path.contains(':\\') || path.contains(':/')) {
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildImageError(),
+      );
+    }
+    return Image.asset(
+      path,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _buildImageError(),
+    );
+  }
+
+  Widget _buildImageError() {
+    return Container(
+      color: const Color(0xFF1C1C2E),
+      child: const Center(
+        child: Icon(
+          Icons.image_not_supported_rounded,
+          color: Colors.white38,
+          size: 40,
+        ),
       ),
     );
   }

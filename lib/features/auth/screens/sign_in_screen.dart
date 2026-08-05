@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../providers/auth_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../widgets/auth_button.dart';
 
@@ -38,16 +39,20 @@ class _SignInScreenState extends State<SignInScreen> {
     }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
+    final success = await AuthProvider().login(email, pass);
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.home,
-      (route) => false,
-    );
+    if (success) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.home,
+        (route) => false,
+      );
+    } else {
+      _showSnackBar('Đăng nhập thất bại. Vui lòng thử lại.');
+    }
   }
 
   void _showSnackBar(String message) {
@@ -71,94 +76,56 @@ class _SignInScreenState extends State<SignInScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Đăng nhập',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-        ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Chào mừng trở lại!',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildFieldLabel('Email'),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: _emailCtrl,
+                  hint: 'example@email.com',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
                 ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Nhập thông tin tài khoản để tiếp tục',
-                style: TextStyle(color: Color(0x99FFFFFF), fontSize: 14),
-              ),
 
-              const SizedBox(height: 36),
+                const SizedBox(height: 20),
 
-              _buildFieldLabel('Email'),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _emailCtrl,
-                hint: 'example@email.com',
-                icon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
-              ),
-
-              const SizedBox(height: 20),
-
-              _buildFieldLabel('Mật khẩu'),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _passCtrl,
-                hint: '••••••••',
-                icon: Icons.lock_outline_rounded,
-                obscure: _obscurePass,
-                suffix: IconButton(
-                  icon: Icon(
-                    _obscurePass
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    color: Colors.grey[500],
-                  ),
-                  onPressed: () {
-                    setState(() => _obscurePass = !_obscurePass);
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    _showSnackBar('Tính năng khôi phục mật khẩu đang phát triển');
-                  },
-                  child: const Text(
-                    'Quên mật khẩu?',
-                    style: TextStyle(
-                      color: Color(0xFF7F77DD),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                _buildFieldLabel('Mật khẩu'),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: _passCtrl,
+                  hint: '••••••••',
+                  icon: Icons.lock_outline_rounded,
+                  obscure: _obscurePass,
+                  suffix: IconButton(
+                    icon: Icon(
+                      _obscurePass
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: Colors.grey[500],
                     ),
+                    onPressed: () {
+                      setState(() => _obscurePass = !_obscurePass);
+                    },
                   ),
                 ),
-              ),
 
-              const SizedBox(height: 28),
+                const SizedBox(height: 28),
 
-              AuthButton(
-                label: 'Đăng nhập',
-                isPrimary: true,
-                isLoading: _isLoading,
-                onPressed: _submitSignIn,
-              ),
-
-              const SizedBox(height: 24),
-            ],
+                AuthButton(
+                  label: 'Tiếp tục',
+                  isPrimary: true,
+                  isLoading: _isLoading,
+                  onPressed: _submitSignIn,
+                ),
+              ],
+            ),
           ),
         ),
       ),

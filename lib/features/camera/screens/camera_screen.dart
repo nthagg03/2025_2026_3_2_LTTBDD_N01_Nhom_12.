@@ -1,13 +1,8 @@
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 import '../../../routes/app_routes.dart';
-import '../widgets/camera_top_bar.dart';
-import '../widgets/flash_button.dart';
-import '../widgets/flip_camera_button.dart';
-import '../widgets/shutter_button.dart';
-import 'photo_preview_screen.dart';
+import 'send_photo_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -17,464 +12,518 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
-
   bool _isLoading = true;
   bool _permissionDenied = false;
   bool _isTakingPhoto = false;
   int _currentCameraIndex = 0;
-  FlashMode _flashMode = FlashMode.off;
+  bool _flashOn = false;
 
-  final List<Map<String, String>> _friends = const [
-    {'name': 'Tân', 'avatar': 'DTT'},
-    {'name': 'Nam', 'avatar': 'TN'},
-    {'name': 'Thắng', 'avatar': 'XT'},
-    {'name': 'An Thuyên', 'avatar': '29C1'},
-  ];
+  // Animation cho nút chụp
+  late AnimationController _shutterAnim;
+  late Animation<double> _shutterScale;
+
+  static const int _friendCount = 23;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _shutterAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      lowerBound: 0.0,
+      upperBound: 1.0,
+    );
+    _shutterScale = Tween<double>(begin: 1.0, end: 0.88).animate(
+      CurvedAnimation(parent: _shutterAnim, curve: Curves.easeInOut),
+    );
     _initCamera();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _shutterAnim.dispose();
     _controller?.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = _controller;
-
-    if (controller == null || !controller.value.isInitialized) {
-      return;
-    }
-
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
-      controller.dispose();
-      _controller = null;
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    if (state == AppLifecycleState.inactive) {
+      _controller?.dispose();
     } else if (state == AppLifecycleState.resumed) {
       _initCamera();
     }
   }
 
   Future<void> _initCamera() async {
-    if (mounted) {
-      setState(() {
-        _isLoading = true;
-        _permissionDenied = false;
-      });
-    }
-
+    setState(() => _isLoading = true);
     final status = await Permission.camera.request();
-
     if (!status.isGranted) {
-      if (!mounted) return;
       setState(() {
         _permissionDenied = true;
         _isLoading = false;
       });
       return;
     }
-
-    try {
-      _cameras = await availableCameras();
-
-      if (_cameras.isEmpty) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      if (_currentCameraIndex >= _cameras.length) {
-        _currentCameraIndex = 0;
-      }
-
-      await _startCamera(_cameras[_currentCameraIndex]);
-    } catch (_) {
-      if (!mounted) return;
+    _cameras = await availableCameras();
+    if (_cameras.isEmpty) {
       setState(() => _isLoading = false);
+      return;
     }
+    await _startCamera(_cameras[_currentCameraIndex]);
   }
 
   Future<void> _startCamera(CameraDescription camera) async {
-    final oldController = _controller;
-    _controller = null;
-    await oldController?.dispose();
-
     final controller = CameraController(
       camera,
       ResolutionPreset.high,
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.jpeg,
     );
-
     try {
       await controller.initialize();
-      await controller.setFlashMode(_flashMode);
-
-      if (!mounted) {
-        await controller.dispose();
-        return;
-      }
-
+      if (!mounted) return;
       setState(() {
         _controller = controller;
         _isLoading = false;
       });
-    } catch (_) {
-      await controller.dispose();
-
-      if (!mounted) return;
+    } catch (e) {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _flipCamera() async {
-    if (_cameras.length < 2 || _isLoading || _isTakingPhoto) {
-      return;
-    }
-
+    if (_cameras.length < 2) return;
+    _currentCameraIndex = _currentCameraIndex == 0 ? 1 : 0;
+    await _controller?.dispose();
     setState(() => _isLoading = true);
-    _currentCameraIndex = (_currentCameraIndex + 1) % _cameras.length;
     await _startCamera(_cameras[_currentCameraIndex]);
   }
 
-  Future<void> _toggleFlash() async {
-    if (_controller == null || !_controller!.value.isInitialized) return;
-
-    FlashMode newMode;
-    switch (_flashMode) {
-      case FlashMode.off:
-        newMode = FlashMode.auto;
-        break;
-      case FlashMode.auto:
-        newMode = FlashMode.always;
-        break;
-      case FlashMode.always:
-        newMode = FlashMode.torch;
-        break;
-      case FlashMode.torch:
-        newMode = FlashMode.off;
-        break;
-    }
-
-    try {
-      await _controller!.setFlashMode(newMode);
-      setState(() => _flashMode = newMode);
-    } catch (_) {}
+  void _toggleFlash() {
+    if (_controller == null) return;
+    setState(() => _flashOn = !_flashOn);
+    _controller!.setFlashMode(_flashOn ? FlashMode.torch : FlashMode.off);
   }
 
   Future<void> _takePhoto() async {
-    final controller = _controller;
-
-    if (controller == null ||
-        !controller.value.isInitialized ||
-        controller.value.isTakingPicture ||
-        _isTakingPhoto) {
-      return;
-    }
-
-    setState(() {
-      _isTakingPhoto = true;
-    });
-
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    if (_isTakingPhoto) return;
+    // Animate shutter
+    await _shutterAnim.forward();
+    await _shutterAnim.reverse();
+    setState(() => _isTakingPhoto = true);
     try {
-      final photo = await controller.takePicture();
-      final imageBytes = await photo.readAsBytes();
-
+      final XFile photo = await _controller!.takePicture();
+      final bytes = await photo.readAsBytes();
       if (!mounted) return;
+      setState(() => _isTakingPhoto = false);
 
-      await Navigator.push(
+      Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => PhotoPreviewScreen(imageBytes: imageBytes),
-        ),
-      );
-    } on CameraException catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Không thể chụp ảnh: ${error.description ?? error.code}',
+          builder: (context) => SendPhotoScreen(
+            imageBytes: bytes,
+            imagePath: photo.path,
           ),
-          backgroundColor: Colors.redAccent,
         ),
       );
-    } catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Không thể xử lý ảnh: $error'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isTakingPhoto = false;
-        });
-      }
+    } catch (e) {
+      setState(() => _isTakingPhoto = false);
     }
   }
 
+
+  // ─────────────────────────────────────────────────
+  // BUILD
+  // ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     if (_permissionDenied) return _buildPermissionDenied();
     if (_isLoading) return _buildLoading();
-
-    final controller = _controller;
-
-    if (controller == null || !controller.value.isInitialized) {
-      return _buildError();
-    }
+    if (_controller == null) return _buildError();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A14),
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Column(
           children: [
-            // Top Bar with Friends Pill & Profile Avatar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: CameraTopBar(
-                friendCount: _friends.length,
-                onFriendsPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Danh sách bạn bè'),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                },
-                onProfilePressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Trang cá nhân'),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                },
+            // ── TOP BAR ──────────────────────────────────
+            _buildTopBar(),
+
+            // ── VIEWFINDER ───────────────────────────────
+            _buildViewfinder(),
+
+            // ── CONTROLS ─────────────────────────────────
+            _buildControls(),
+
+            // ── LỊCH SỬ ──────────────────────────────────
+            _buildHistoryRow(),
+
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Top Bar ───────────────────────────────────────
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Row(
+        children: [
+          // Notification / Flash icon (left)
+          _topIconBtn(
+            icon: Icons.volume_off_rounded,
+            onTap: () {},
+          ),
+
+          const Spacer(),
+
+          // Friends pill (center)
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, AppRoutes.friends),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E),
+                borderRadius: BorderRadius.circular(22),
               ),
-            ),
-
-            // Large Camera Preview Box with Rounded Corners (Radius 28)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      _buildCameraPreview(controller),
-
-                      // Flash Mode Control Widget
-                      Positioned(
-                        top: 14,
-                        left: 14,
-                        child: FlashButton(
-                          flashMode: _flashMode,
-                          onPressed: _toggleFlash,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Camera Capture Controls (Feed shortcut, Shutter button, Flip camera)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(36, 16, 36, 8),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(context, AppRoutes.feed);
-                    },
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF13132A),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF2A2A44)),
-                      ),
-                      child: const Icon(
-                        Icons.photo_library_rounded,
-                        color: Colors.white70,
-                        size: 24,
-                      ),
+                  const Icon(Icons.people_rounded,
+                      color: Colors.white, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$_friendCount người bạn',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-
-                  ShutterButton(
-                    onPressed: _takePhoto,
-                    isLoading: _isTakingPhoto,
-                  ),
-
-                  FlipCameraButton(
-                    onPressed: _flipCamera,
-                    isLoading: _isLoading,
                   ),
                 ],
               ),
             ),
+          ),
 
-            // Bottom Memories / History Button
-            _buildHistoryButton(),
-            const SizedBox(height: 4),
-          ],
-        ),
-      ),
-    );
-  }
+          const Spacer(),
 
-  Widget _buildCameraPreview(CameraController controller) {
-    final previewSize = controller.value.previewSize;
-
-    if (previewSize == null) {
-      return const ColoredBox(color: Colors.black);
-    }
-
-    return FittedBox(
-      fit: BoxFit.cover,
-      child: SizedBox(
-        width: previewSize.height,
-        height: previewSize.width,
-        child: CameraPreview(controller),
-      ),
-    );
-  }
-
-  Widget _buildHistoryButton() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(context, AppRoutes.memories);
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFB800),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFFFB800).withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '4',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
+          // Avatar (right) — navigate to profile
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white30, width: 2),
+                color: const Color(0xFF2C2C2E),
+              ),
+              child: ClipOval(
+                child: _AvatarPlaceholder(),
               ),
             ),
-            SizedBox(width: 6),
-            Text(
-              'Lịch sử kỷ niệm',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Viewfinder ────────────────────────────────────
+  Widget _buildViewfinder() {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Camera preview — fill & cover
+              FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _controller!.value.previewSize!.height,
+                  height: _controller!.value.previewSize!.width,
+                  child: CameraPreview(_controller!),
+                ),
+              ),
+
+              // Flash button — top left
+              Positioned(
+                top: 14,
+                left: 14,
+                child: GestureDetector(
+                  onTap: _toggleFlash,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.45),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _flashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+                      color: _flashOn ? const Color(0xFFFFB800) : Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Zoom badge — top right
+              Positioned(
+                top: 14,
+                right: 14,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.45),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Text(
+                    '1×',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Controls row ──────────────────────────────────
+  Widget _buildControls() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(44, 22, 44, 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Gallery / last photo thumbnail
+          GestureDetector(
+            onTap: () {},
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(13),
+                child: const Icon(
+                  Icons.photo_library_rounded,
+                  color: Colors.white54,
+                  size: 26,
+                ),
+              ),
+            ),
+          ),
+
+          // Shutter button — white circle + yellow ring
+          GestureDetector(
+            onTap: _isTakingPhoto ? null : _takePhoto,
+            child: ScaleTransition(
+              scale: _shutterScale,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFFFB800),
+                    width: 4.5,
+                  ),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 62,
+                    height: 62,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Flip camera
+          GestureDetector(
+            onTap: _flipCamera,
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: const BoxDecoration(
+                color: Color(0xFF1C1C1E),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.flip_camera_ios_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── History row ───────────────────────────────────
+  Widget _buildHistoryRow() {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, AppRoutes.memories),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Mini thumbnail
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2C2C2E),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: const Icon(Icons.photo_rounded,
+                  color: Colors.white38, size: 18),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Lịch sử',
               style: TextStyle(
-                color: Colors.black,
-                fontSize: 14,
+                color: Colors.white,
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            SizedBox(width: 4),
-            Icon(Icons.keyboard_arrow_up_rounded, color: Colors.black, size: 18),
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_down_rounded,
+                color: Colors.white70, size: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLoading() {
-    return const Scaffold(
-      backgroundColor: Color(0xFF0A0A14),
-      body: Center(
-        child: CircularProgressIndicator(color: Color(0xFFFFB800)),
+  // ─── Helpers ───────────────────────────────────────
+  Widget _topIconBtn({required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Color(0xFF1C1C1E),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white70, size: 18),
       ),
     );
   }
 
-  Widget _buildPermissionDenied() {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A0A14),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.camera_alt_outlined,
-              color: Colors.white24,
-              size: 56,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Cần quyền camera',
-              style: TextStyle(color: Colors.white70, fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: openAppSettings,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFB800),
-              ),
-              child: const Text(
-                'Mở Cài đặt',
-                style: TextStyle(color: Colors.black),
-              ),
-            ),
-          ],
+  // ─── State screens ─────────────────────────────────
+  Widget _buildLoading() => const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFFFFB800),
+            strokeWidth: 2.5,
+          ),
         ),
-      ),
-    );
-  }
+      );
 
-  Widget _buildError() {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A0A14),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white24, size: 56),
-            const SizedBox(height: 16),
-            const Text(
-              'Không mở được camera',
-              style: TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _initCamera,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFB800),
+  Widget _buildPermissionDenied() => Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.camera_alt_outlined,
+                  color: Colors.white24, size: 56),
+              const SizedBox(height: 16),
+              const Text('Cần quyền truy cập camera',
+                  style: TextStyle(color: Colors.white70, fontSize: 16)),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: openAppSettings,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFB800),
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 28, vertical: 12),
+                ),
+                child: const Text('Mở Cài đặt',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
               ),
-              child: const Text(
-                'Thử lại',
-                style: TextStyle(color: Colors.black),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+      );
+
+  Widget _buildError() => Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline,
+                  color: Colors.white24, size: 56),
+              const SizedBox(height: 16),
+              const Text('Không mở được camera',
+                  style: TextStyle(color: Colors.white70, fontSize: 16)),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _initCamera,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFB800),
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 28, vertical: 12),
+                ),
+                child: const Text('Thử lại',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+// ── Avatar placeholder ─────────────────────────────────
+class _AvatarPlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF3A3A3C),
+      child: const Icon(Icons.person_rounded, color: Colors.white54, size: 22),
     );
   }
 }

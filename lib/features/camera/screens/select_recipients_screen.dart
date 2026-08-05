@@ -1,15 +1,21 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
+import '../../history/models/history_photo.dart';
+import '../../history/services/history_service.dart';
 
 class SelectRecipientsScreen extends StatefulWidget {
   const SelectRecipientsScreen({
     super.key,
     required this.imageBytes,
+    this.imagePath,
     required this.caption,
   });
 
   final Uint8List imageBytes;
+  final String? imagePath;
   final String caption;
 
   @override
@@ -19,7 +25,7 @@ class SelectRecipientsScreen extends StatefulWidget {
 class _SelectRecipientsScreenState extends State<SelectRecipientsScreen> {
   final Set<int> _selectedIndexes = {};
 
-  final List<String> _friends = const ['Tân', 'Nam', 'Thắng', 'An Thuyên'];
+  final List<String> _friends = const ['VuPhuong', 'Nam', 'Thắng', 'An Thuyên'];
 
   bool _isSending = false;
 
@@ -58,9 +64,32 @@ class _SelectRecipientsScreenState extends State<SelectRecipientsScreen> {
     });
 
     try {
-      // Tạm mô phỏng thao tác gửi.
-      // Sau này thay bằng Firebase Storage và Firestore.
-      await Future<void>.delayed(const Duration(milliseconds: 800));
+      // Direct local save for dummy upload (offline capability)
+      String path = widget.imagePath ?? '';
+      if (path.isEmpty) {
+        final tempDir = Directory.systemTemp;
+        final file = File(
+          '${tempDir.path}/locket_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
+        await file.writeAsBytes(widget.imageBytes);
+        path = file.path;
+      }
+
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      final selectedNames =
+          _selectedIndexes.map((i) => _friends[i]).toList();
+
+      HistoryService.instance.addPhoto(
+        HistoryPhoto(
+          id: 'photo_${DateTime.now().millisecondsSinceEpoch}',
+          imagePath: path,
+          caption: widget.caption,
+          createdAt: DateTime.now(),
+          recipients: selectedNames,
+          isMine: true,
+        ),
+      );
 
       if (!mounted) return;
 
@@ -71,6 +100,10 @@ class _SelectRecipientsScreenState extends State<SelectRecipientsScreen> {
             '${_selectedIndexes.length} người.',
           ),
           backgroundColor: const Color(0xFF7F77DD),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
       );
 
@@ -96,6 +129,15 @@ class _SelectRecipientsScreenState extends State<SelectRecipientsScreen> {
           'Chọn người nhận',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
+        bottom: _isSending
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(3),
+                child: LinearProgressIndicator(
+                  color: Color(0xFFFFB800),
+                  backgroundColor: Color(0xFF13132A),
+                ),
+              )
+            : null,
       ),
       body: SafeArea(
         child: Column(
